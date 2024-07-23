@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-07-23 16:49:08 by Eclipse SUMO GUI Version 1.18.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test.net.xml"/>
+        <route-files value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test.rou.xml"/>
+        <additional-files value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\New_detector.add.xml"/>
+    </input>
+
+    <gui_only>
+        <gui-settings-file value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test_cfg.settings.xml"/>
+    </gui_only>
+
+</configuration>
+-->
+
+<detector xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/det_e1_file.xsd">
+    <interval begin="0.00" end="300.00" id="Eb_in_1" nVehContrib="0" flow="0.00" occupancy="0.00" speed="-1.00" harmonicMeanSpeed="-1.00" length="-1.00" nVehEntered="0"/>
+    <interval begin="0.00" end="300.00" id="Eb_in_2" nVehContrib="44" flow="528.00" occupancy="16.56" speed="4.46" harmonicMeanSpeed="4.43" length="5.00" nVehEntered="44"/>
+    <interval begin="0.00" end="300.00" id="Eb_in_3" nVehContrib="46" flow="552.00" occupancy="65.07" speed="2.62" harmonicMeanSpeed="2.58" length="5.00" nVehEntered="90"/>
+    <interval begin="300.00" end="525.00" id="Eb_in_1" nVehContrib="0" flow="0.00" occupancy="0.00" speed="-1.00" harmonicMeanSpeed="-1.00" length="-1.00" nVehEntered="0"/>
+    <interval begin="300.00" end="525.00" id="Eb_in_2" nVehContrib="0" flow="0.00" occupancy="0.00" speed="-1.00" harmonicMeanSpeed="-1.00" length="-1.00" nVehEntered="0"/>
+    <interval begin="300.00" end="525.00" id="Eb_in_3" nVehContrib="0" flow="0.00" occupancy="0.00" speed="-1.00" harmonicMeanSpeed="-1.00" length="-1.00" nVehEntered="0"/>
+</detector>

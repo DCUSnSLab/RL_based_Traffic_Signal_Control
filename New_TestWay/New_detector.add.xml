@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-06-20 21:54:17 by Eclipse SUMO netedit Version 1.18.0
+-->
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <!-- Detectors -->
+    <inductionLoop id="Eb_in_1" lane="E63_2" pos="2.03" period="300.00" file="./new_loop_detect_result/Eb_in.xml"/>
+    <inductionLoop id="Eb_in_2" lane="E63_1" pos="2.05" period="300.00" file="./new_loop_detect_result/Eb_in.xml"/>
+    <inductionLoop id="Eb_in_3" lane="E63_0" pos="2.06" period="300.00" file="./new_loop_detect_result/Eb_in.xml"/>
+	
+    <inductionLoop id="Eb_out_1" lane="E71_3" pos="33.01" period="300.00" file="./new_loop_detect_result/Eb_out.xml"/>
+    <inductionLoop id="Eb_out_2" lane="E71_2" pos="33.00" period="300.00" file="./new_loop_detect_result/Eb_out.xml"/>
+    <inductionLoop id="Eb_out_3" lane="E71_1" pos="33.01" period="300.00" file="./new_loop_detect_result/Eb_out.xml"/>
+    <inductionLoop id="Eb_out_4" lane="E71_0" pos="33.00" period="300.00" file="./new_loop_detect_result/Eb_out.xml"/>
+    <inductionLoop id="Eb_out_5" lane="E72_0" pos="2.08" period="300.00" file="./new_loop_detect_result/Eb_out.xml"/>
+	
+    <inductionLoop id="Nb_in_1" lane="E133_4" pos="4.89" period="300.00" file="./new_loop_detect_result/Nb_in.xml"/>
+    <inductionLoop id="Nb_in_2" lane="E133_3" pos="4.89" period="300.00" file="./new_loop_detect_result/Nb_in.xml"/>
+    <inductionLoop id="Nb_in_3" lane="E133_2" pos="4.84" period="300.00" file="./new_loop_detect_result/Nb_in.xml"/>
+    <inductionLoop id="Nb_in_4" lane="E133_1" pos="4.86" period="300.00" file="./new_loop_detect_result/Nb_in.xml"/>
+    <inductionLoop id="Nb_in_5" lane="E133_0" pos="4.90" period="300.00" file="./new_loop_detect_result/Nb_in.xml"/>
+	
+    <inductionLoop id="Nb_out_1" lane="E112_2" pos="48.18" period="300.00" file="./new_loop_detect_result/Nb_out.xml"/>
+    <inductionLoop id="Nb_out_2" lane="E112_1" pos="48.23" period="300.00" file="./new_loop_detect_result/Nb_out.xml"/>
+    <inductionLoop id="Nb_out_3" lane="E112_0" pos="48.21" period="300.00" file="./new_loop_detect_result/Nb_out.xml"/>
+    <inductionLoop id="Nb_out_4" lane="E116_1" pos="1.93" period="300.00" file="./new_loop_detect_result/Nb_out.xml"/>
+    <inductionLoop id="Nb_out_5" lane="E116_0" pos="2.06" period="300.00" file="./new_loop_detect_result/Nb_out.xml"/>
+	
+    <inductionLoop id="Sb_in_1" lane="E5_6" pos="9.03" period="300.00" file="./new_loop_detect_result/Sb_in.xml"/>
+    <inductionLoop id="Sb_in_2" lane="E5_5" pos="9.01" period="300.00" file="./new_loop_detect_result/Sb_in.xml"/>
+    <inductionLoop id="Sb_in_3" lane="E5_4" pos="8.99" period="300.00" file="./new_loop_detect_result/Sb_in.xml"/>
+    <inductionLoop id="Sb_in_4" lane="E5_3" pos="9.00" period="300.00" file="./new_loop_detect_result/Sb_in.xml"/>
+    <inductionLoop id="Sb_in_5" lane="E5_2" pos="9.00" period="300.00" file="./new_loop_detect_result/Sb_in.xml"/>
+    <inductionLoop id="Sb_in_6" lane="E5_1" pos="9.00" period="300.00" file="./new_loop_detect_result/Sb_in.xml"/>
+    <inductionLoop id="Sb_in_7" lane="E5_0" pos="9.03" period="300.00" file="./new_loop_detect_result/Sb_in.xml"/>
+	
+    <inductionLoop id="Sb_out_1" lane="E0_3" pos="25.13" period="300.00" file="./new_loop_detect_result/Sb_out.xml"/>
+    <inductionLoop id="Sb_out_2" lane="E0_2" pos="25.12" period="300.00" file="./new_loop_detect_result/Sb_out.xml"/>
+    <inductionLoop id="Sb_out_3" lane="E0_1" pos="25.16" period="300.00" file="./new_loop_detect_result/Sb_out.xml"/>
+    <inductionLoop id="Sb_out_4" lane="E0_0" pos="25.20" period="300.00" file="./new_loop_detect_result/Sb_out.xml"/>
+    <inductionLoop id="Sb_out_5" lane="E1_0" pos="2.77" period="300.00" file="./new_loop_detect_result/Sb_out.xml"/>
+	
+    <inductionLoop id="Wb_in_1" lane="E44_1" pos="8.98" period="300.00" file="./new_loop_detect_result/Wb_in.xml"/>
+    <inductionLoop id="Wb_in_2" lane="E44_0" pos="9.01" period="300.00" file="./new_loop_detect_result/Wb_in.xml"/>
+	
+    <inductionLoop id="Wb_out_1" lane="E37_3" pos="25.43" period="300.00" file="./new_loop_detect_result/Wb_out.xml"/>
+    <inductionLoop id="Wb_out_2" lane="E37_2" pos="25.52" period="300.00" file="./new_loop_detect_result/Wb_out.xml"/>
+    <inductionLoop id="Wb_out_3" lane="E37_1" pos="25.59" period="300.00" file="./new_loop_detect_result/Wb_out.xml"/>
+    <inductionLoop id="Wb_out_4" lane="E37_0" pos="25.69" period="300.00" file="./new_loop_detect_result/Wb_out.xml"/>
+    <inductionLoop id="Wb_out_5" lane="E31_0" pos="2.01" period="300.00" file="./new_loop_detect_result/Wb_out.xml"/>
+</additional>

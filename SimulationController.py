@@ -5,7 +5,6 @@ from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
 
 import RunSimulation
-from ShowGraph import GraphWindow
 
 class TrafficSimulatorApp(QMainWindow):
     def __init__(self):
@@ -17,7 +16,7 @@ class TrafficSimulatorApp(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("Traffic Simulator Visualization")
-        self.setGeometry(100, 100, 1350, 800)
+        self.setGeometry(100, 100, 1920, 1080)
 
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
@@ -25,19 +24,49 @@ class TrafficSimulatorApp(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         select_layout = QVBoxLayout()
         top_layout = QHBoxLayout()
+        state_layout = QHBoxLayout()
+        emission_layout = QHBoxLayout()
+        bottom_layout = QHBoxLayout()
 
-        # CO2 Emissions graph
-        self.CO2_graph = pg.PlotWidget(title="C02 Emissions")
-        self.CO2_graph.plotItem.setLabels(bottom='Time(s)', left="CO2 Emissions(kg)")
-        self.CO2_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-        self.CO2_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-        self.CO2_graph.setBackground('w')
-        self.CO2_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
+        # Traffic Lights
+        # self.traffic_sign = QLabel(self)
+        # pixmap = QGraphicsPixmapItem("")
+        self.traffic_sign = pg.PlotWidget(title="Traffic Sign(temp)")
+        # self.queue_graph.plotItem.setLabels(bottom='Time(s)', left="Count")
+        # self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+        # self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+        self.traffic_sign.setBackground('w')
+        state_layout.addWidget(self.traffic_sign)
+
+        # Queue graph
+        self.queue_graph = pg.PlotWidget(title="Queue")
+        # self.queue_graph.plotItem.setLabels(bottom='Time(s)', left="Count")
+        # self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+        # self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+        self.queue_graph.setBackground('w')
+        state_layout.addWidget(self.queue_graph)
+
+        # Emissions graph
+        self.emission_graph = pg.PlotWidget(title="Total Emissions")
+        self.emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(g)")
+        self.emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+        self.emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+        self.emission_graph.setBackground('w')
+        self.emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
 
         # pen = pg.mkPen(color=(0, 255, 0), width=5, style=QtCore.Qt.SolidLine)
-        self.CO2_curve = self.CO2_graph.plot(pen="g")
+        self.CO2_curve = self.emission_graph.plot(pen="g")
+        emission_layout.addWidget(self.emission_graph)
 
-        bottom_layout = QHBoxLayout()
+        # Emission graph by bound
+        self.bound_emission_graph = pg.PlotWidget(title="Emissions by Bound")
+        self.bound_emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(g)")
+        self.bound_emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+        self.bound_emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+        self.bound_emission_graph.setBackground('w')
+        self.bound_emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
+
+        emission_layout.addWidget(self.bound_emission_graph)
 
         start_button = QPushButton("Start Simulation")
         font = start_button.font()
@@ -71,7 +100,8 @@ class TrafficSimulatorApp(QMainWindow):
 
         main_layout.addLayout(select_layout)
         main_layout.addLayout(top_layout)
-        main_layout.addWidget(self.CO2_graph)
+        main_layout.addLayout(state_layout)
+        main_layout.addLayout(emission_layout)
         main_layout.addLayout(bottom_layout)
 
     def initialize_controller(self):
@@ -116,6 +146,11 @@ class TrafficSimulatorApp(QMainWindow):
         # Periodically update the data from the simulation
         if self.simulation_thread is not None:
             self.simulation_thread.emit_results()
+
+    def closeEvent(self, event):
+        if self.parent():
+            self.parent().show()
+        event.accept()
 
 class SimulationThread(QThread):
     results_signal = pyqtSignal(list, list, list, list)

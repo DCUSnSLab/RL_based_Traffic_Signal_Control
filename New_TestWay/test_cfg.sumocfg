@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-04-13 19:59:42 by Eclipse SUMO sumo Version 1.18.0
+-->
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+	<input>
+		<!--additional-files value="test.add.xml"/-->
+		<additional-files value="New_detector.add.xml"/>
+		<net-file value="test.net.xml"/>
+		<route-files value="test.rou.xml"/>
+		<gui-settings-file value="test_cfg.settings.xml"/>
+	</input>
+
+</configuration>

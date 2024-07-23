@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-04-19 06:30:56 by Eclipse SUMO netedit Version 1.18.0
+-->
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <!-- Vehicles, persons and containers (sorted by depart) -->
+	<!-- Nb -->
+    <flow id="Nb_l" begin="0.00" from="E133" to="E18" end="270.00" number="10"/>
+	<flow id="Nb_s" begin="0.00" from="E133" to="E34" end="270.00" number="10"/>
+	<flow id="Nb_r" begin="0.00" from="E133" to="E88" end="270.00" number="10"/>
+	 
+	<!-- Sb -->
+	<flow id="Sb_l" begin="0.00" from="E6" to="E88" end="270.00" number="20"/>
+	<flow id="Sb_s" begin="0.00" from="E6" to="E102" end="270.00" number="20"/>
+	<flow id="Sb_r" begin="0.00" from="E6" to="E18" end="270.00" number="20"/>
+	
+	<!-- Eb -->
+	<flow id="Eb_l" begin="0.00" from="E63" to="E34" end="270.00" number="30"/>
+	<flow id="Eb_s" begin="0.00" from="E63" to="E88" end="270.00" number="30"/>
+	<flow id="Eb_r" begin="0.00" from="E63" to="E102" end="270.00" number="30"/>
+    
+	<!-- Wb -->
+	<flow id="Wb_l" begin="0.00" from="E53" to="E102" end="270.00" number="40"/>
+	<flow id="Wb_s" begin="0.00" from="E53" to="E18" end="270.00" number="40"/>
+	<flow id="Wb_r" begin="0.00" from="E53" to="E34" end="270.00" number="40"/>
+</routes>

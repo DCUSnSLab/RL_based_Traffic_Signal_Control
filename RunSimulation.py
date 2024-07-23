@@ -4,9 +4,12 @@ import traci
 import pandas as pd
 
 class Config_SUMO:
-    sumocfg_path = r'input your sumocfg path'
-    scenario_path = r'input your scenario path'
-    scenario_file = "input your scenario file"
+    # SUMO Configuration File
+    sumocfg_path = "New_TestWay/test_cfg.sumocfg"
+    # SUMO Scenario File Path
+    scenario_path = "New_TestWay"
+    # SUMO Scenario File(.add.xml)
+    scenario_file = "New_detector.add.xml"
 
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
@@ -23,14 +26,20 @@ class Detector:
         self.tmp = 0
 
     def update(self):
-        if traci.inductionloop.getLastStepVehicleIDs(self.id) in self.vehicle_list:
-            pass
+        if self.id.find("in") != -1:
+            if traci.inductionloop.getLastStepVehicleIDs(self.id) in self.vehicle_list:
+                pass
+            else:
+                self.vehicle_interval_list += traci.inductionloop.getLastStepVehicleIDs(self.id)
+                self.vehicle_interval_count = len(list(set(self.vehicle_interval_list)))
+                for v_id in self.vehicle_interval_list:
+                    self.vehicle_interval_co2 += traci.vehicle.getCO2Emission(v_id)
+                    self.vehicle_total_co2 += traci.vehicle.getCO2Emission(v_id)
         else:
-            self.vehicle_interval_list += traci.inductionloop.getLastStepVehicleIDs(self.id)
-            self.vehicle_interval_count = len(list(set(self.vehicle_interval_list)))
-            for v_id in self.vehicle_interval_list:
-                self.vehicle_interval_co2 += traci.vehicle.getCO2Emission(v_id)
-                self.vehicle_total_co2 += traci.vehicle.getCO2Emission(v_id)
+            if traci.inductionloop.getLastStepVehicleIDs(self.id) in self.vehicle_list:
+                self.vehicle_list.remove(traci.inductionloop.getLastStepVehicleIDs(self.id))
+            else:
+                pass
 
     def interval_reset(self):
         self.vehicle_list += self.vehicle_interval_list
@@ -56,13 +65,25 @@ class SumoController:
     def __init__(self,config):
         self.config = config
         self.__set_SUMO()
+        # Detector list
         self.detectors = [Detector(detector_id) for detector_id in self.__get_detector_ids(self.config)]
+
         self.detection_result_flow = []
         self.detection_result_co2 = []
         self.detection_result_co2_flow = []
+
         self.detection_result_flow_merge = []
         self.detection_result_co2_merge = []
         self.detection_result_co2_flow_merge = []
+
+        # Group detectors by direction
+        self.detector_groups = self.__group_detectors_by_direction(self.detectors)
+
+        self.Eb_detection_result_co2 = []
+        self.Eb_detection_result_co2 = []
+        self.Eb_detection_result_co2 = []
+        self.Eb_detection_result_co2 = []
+
         self.detection_co2=[]
         pass
 
@@ -78,6 +99,15 @@ class SumoController:
     def __set_SUMO(self):
         traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start"])
         traci.simulationStep()
+
+    def __group_detectors_by_direction(self, detectors):
+        groups = {}
+        for detector in detectors:
+            direction = detector.id.split('_')[0]
+            if direction not in groups:
+                groups[direction] = []
+            groups[direction].append(detector)
+        return groups
 
     def extract_excel(self):
         # Create a DataFrame from the detection results
@@ -112,6 +142,19 @@ class SumoController:
             if (step % 30) == 0:
                 # print("Current simulation time:", traci.simulation.getTime())
                 for detector in self.detectors:
+                    direction = detector.id.split('_')[0]
+                    if direction == "Eb":
+                        pass
+                    elif direction == "Nb":
+                        pass
+                    elif direction == "Wb":
+                        pass
+                    elif direction == "Sb":
+                        pass
+                    else:
+                        pass
+
+
                     self.detection_result_flow.append({"Time": traci.simulation.getTime(), detector.id: int(f"{detector.vehicle_interval_count}")})
                     self.detection_result_co2.append({"Time": traci.simulation.getTime(), detector.id: float(f"{detector.vehicle_interval_co2:.2f}")})
                     self.detection_result_co2_flow.append({"Time": traci.simulation.getTime(), detector.id : f"{detector.vehicle_interval_co2:.2f}/{detector.vehicle_interval_count}"})

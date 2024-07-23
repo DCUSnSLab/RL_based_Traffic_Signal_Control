@@ -1,7 +1,10 @@
+import subprocess
 import sys
 
 from PyQt5.QtCore import QDate
 from PyQt5.QtWidgets import *
+
+import SimulationController
 
 
 class AnalysisTools(QTabWidget):
@@ -84,6 +87,7 @@ class AnalysisTools(QTabWidget):
         cmb2.addItem('SUMO')
         btn_run = QPushButton(self)
         btn_run.setText('Run')
+        btn_run.clicked.connect(self.run_simulation)
         # checkbox1 = QCheckBox('Extract Data from Simulation Results')
         result_group = QGroupBox('Extract Data from Simulation Results')
         result_group.setCheckable(True)
@@ -93,8 +97,6 @@ class AnalysisTools(QTabWidget):
         # label_folder.setStyleSheet('border-style: solid; border-width: 1px;')
         sel_button = QPushButton('Find')
         label2 = QLabel('Option')
-
-
 
         grid = QGridLayout()
 
@@ -115,6 +117,10 @@ class AnalysisTools(QTabWidget):
         groupbox.setLayout(grid)
 
         return groupbox
+
+    def run_simulation(self):
+        # self.hide()
+        subprocess.Popen(["python", "SimulationController.py"])
 
     def onActivated(self, text):
         self.lbl.setText(text)

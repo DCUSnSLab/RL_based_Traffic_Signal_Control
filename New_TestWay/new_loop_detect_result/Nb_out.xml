@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-07-23 16:49:08 by Eclipse SUMO GUI Version 1.18.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test.net.xml"/>
+        <route-files value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test.rou.xml"/>
+        <additional-files value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\New_detector.add.xml"/>
+    </input>
+
+    <gui_only>
+        <gui-settings-file value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test_cfg.settings.xml"/>
+    </gui_only>
+
+</configuration>
+-->
+
+<detector xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/det_e1_file.xsd">
+    <interval begin="0.00" end="300.00" id="Nb_out_1" nVehContrib="8" flow="96.00" occupancy="2.38" speed="6.44" harmonicMeanSpeed="5.61" length="5.00" nVehEntered="8"/>
+    <interval begin="0.00" end="300.00" id="Nb_out_2" nVehContrib="3" flow="36.00" occupancy="1.12" speed="5.67" harmonicMeanSpeed="4.48" length="5.00" nVehEntered="3"/>
+    <interval begin="0.00" end="300.00" id="Nb_out_3" nVehContrib="3" flow="36.00" occupancy="0.93" speed="7.39" harmonicMeanSpeed="5.37" length="5.00" nVehEntered="3"/>
+    <interval begin="0.00" end="300.00" id="Nb_out_4" nVehContrib="2" flow="24.00" occupancy="0.23" speed="14.35" harmonicMeanSpeed="14.35" length="5.00" nVehEntered="2"/>
+    <interval begin="0.00" end="300.00" id="Nb_out_5" nVehContrib="2" flow="24.00" occupancy="0.24" speed="13.88" harmonicMeanSpeed="13.88" length="5.00" nVehEntered="2"/>
+    <interval begin="300.00" end="525.00" id="Nb_out_1" nVehContrib="2" flow="32.00" occupancy="1.25" speed="3.95" harmonicMeanSpeed="3.56" length="5.00" nVehEntered="2"/>
+    <interval begin="300.00" end="525.00" id="Nb_out_2" nVehContrib="2" flow="32.00" occupancy="1.12" speed="4.54" harmonicMeanSpeed="3.97" length="5.00" nVehEntered="2"/>
+    <interval begin="300.00" end="525.00" id="Nb_out_3" nVehContrib="2" flow="32.00" occupancy="1.20" speed="4.44" harmonicMeanSpeed="3.72" length="5.00" nVehEntered="2"/>
+    <interval begin="300.00" end="525.00" id="Nb_out_4" nVehContrib="1" flow="16.00" occupancy="0.16" speed="13.83" harmonicMeanSpeed="13.83" length="5.00" nVehEntered="1"/>
+    <interval begin="300.00" end="525.00" id="Nb_out_5" nVehContrib="0" flow="0.00" occupancy="0.00" speed="-1.00" harmonicMeanSpeed="-1.00" length="-1.00" nVehEntered="0"/>
+</detector>
