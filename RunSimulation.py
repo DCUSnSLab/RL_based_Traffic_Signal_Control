@@ -1,11 +1,12 @@
 import os
+
 import traci
 import pandas as pd
 
 class Config_SUMO:
-    sumocfg_path = r'input/your/sumocfg_path'
-    scenario_path = r'input/your/scenario_path'
-    scenario_file = "test.det.xml"
+    sumocfg_path = r'input your sumocfg path'
+    scenario_path = r'input your scenario path'
+    scenario_file = "input your scenario file"
 
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
@@ -51,29 +52,6 @@ def merge_data(list):
 
     return list_result
 
-def merge_col(df):
-    merged_columns = pd.DataFrame()
-    # Define the number of columns to merge at a time
-    columns_to_merge = 3
-
-    merged_columns['Time'] = df['Time']
-
-    # Loop through columns starting from the 2nd column
-    for i in range(1, len(df.columns), columns_to_merge):
-        start_col = i
-        end_col = min(i + columns_to_merge, len(df.columns))
-
-        # Merge the selected columns and concatenate them horizontally
-        merged = pd.concat([df.iloc[:, start_col:end_col]], axis=1)
-
-        # Rename the columns with a common prefix (e.g., 'Merged_')
-        merged.columns = [f'Merged_{col}' for col in merged.columns]
-
-        # Concatenate the merged columns to the result DataFrame
-        merged_columns = pd.concat([merged_columns, merged], axis=1)
-
-    return merged_columns
-
 class SumoController:
     def __init__(self,config):
         self.config = config
@@ -85,6 +63,7 @@ class SumoController:
         self.detection_result_flow_merge = []
         self.detection_result_co2_merge = []
         self.detection_result_co2_flow_merge = []
+        self.detection_co2=[]
         pass
 
     def __get_detector_ids(self, config):
@@ -97,7 +76,7 @@ class SumoController:
         return detector_ids
 
     def __set_SUMO(self):
-        traci.start(["sumo-gui", "-c", self.config.sumocfg_path])
+        traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start"])
         traci.simulationStep()
 
     def extract_excel(self):
@@ -136,12 +115,11 @@ class SumoController:
                     self.detection_result_flow.append({"Time": traci.simulation.getTime(), detector.id: int(f"{detector.vehicle_interval_count}")})
                     self.detection_result_co2.append({"Time": traci.simulation.getTime(), detector.id: float(f"{detector.vehicle_interval_co2:.2f}")})
                     self.detection_result_co2_flow.append({"Time": traci.simulation.getTime(), detector.id : f"{detector.vehicle_interval_co2:.2f}/{detector.vehicle_interval_count}"})
-
-                    # print(f"{detector.id}에서 통과한 차량 수 : {detector.vehicle_interval_count}")
                     detector.interval_reset()
-            self.detection_result_flow_merge = merge_data(self.detection_result_flow)
-            self.detection_result_co2_merge = merge_data(self.detection_result_co2)
-            self.detection_result_co2_flow_merge = merge_data(self.detection_result_co2_flow)
+
+                self.detection_result_flow_merge = merge_data(self.detection_result_flow)
+                self.detection_result_co2_merge = merge_data(self.detection_result_co2)
+                self.detection_result_co2_flow_merge = merge_data(self.detection_result_co2_flow)
             step += 1
 
         traci.close()
