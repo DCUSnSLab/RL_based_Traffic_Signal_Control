@@ -1,27 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2024-04-19 06:30:56 by Eclipse SUMO netedit Version 1.18.0
+<!-- generated on 2024-07-25 17:49:15 by Eclipse SUMO netedit Version 1.18.0
 -->
 
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <!-- Routes -->
+    <route id="Eb_l" edges="E67 E68 E69 E25 E26 E70 E71 E30 E32 E33 E34"/>
+    <route id="Eb_r" edges="E67 E68 E69 E25 E26 E70 E72 E97 E109 E98 E99 E107 E101 E102"/>
+    <route id="Eb_s" edges="E67 E68 E69 E25 E26 E70 E71 E73 E75 E76 E79 E94 E95 E81 E82 E83 E92 E93 E85 E87 E88"/>
+    <route id="Nb_l" edges="E133 E134 E130 E131 E129 E125 E114 E118 E121 E115 E112 E9 E10 E11 E12 E14 E15 E16 E17 E18"/>
+    <route id="Nb_r" edges="E133 E134 E130 E131 E129 E125 E114 E118 E121 E115 E116 E117 E75 E76 E79 E94 E95 E81 E82 E83 E92 E93 E85 E87 E88"/>
+    <route id="Nb_s" edges="E133 E134 E130 E131 E129 E125 E114 E118 E121 E115 E112 E30 E32 E33 E34"/>
+    <route id="Sb_l" edges="E4 E3 E2 E0 E73 E75 E76 E79 E94 E95 E81 E82 E83 E92 E93 E85 E87 E88"/>
+    <route id="Sb_r" edges="E4 E3 E2 E1 E10 E11 E12 E14 E15 E16 E17 E18"/>
+    <route id="Sb_s" edges="E4 E3 E2 E0 E96 E97 E109 E98 E99 E107 E101 E102"/>
+    <route id="Wb_l" edges="E44 E43 E41 E40 E39 E74 E77 E38 E37 E96 E97 E109 E98 E99 E107 E101 E102"/>
+    <route id="Wb_r" edges="E44 E43 E41 E40 E39 E74 E77 E38 E31 E32 E33 E34"/>
+    <route id="Wb_s" edges="E44 E43 E41 E40 E39 E74 E77 E38 E37 E9 E10 E11 E12 E14 E15 E16 E17 E18"/>
     <!-- Vehicles, persons and containers (sorted by depart) -->
-	<!-- Nb -->
-    <flow id="Nb_l" begin="0.00" from="E133" to="E18" end="270.00" number="10"/>
-	<flow id="Nb_s" begin="0.00" from="E133" to="E34" end="270.00" number="10"/>
-	<flow id="Nb_r" begin="0.00" from="E133" to="E88" end="270.00" number="10"/>
-	 
-	<!-- Sb -->
-	<flow id="Sb_l" begin="0.00" from="E6" to="E88" end="270.00" number="20"/>
-	<flow id="Sb_s" begin="0.00" from="E6" to="E102" end="270.00" number="20"/>
-	<flow id="Sb_r" begin="0.00" from="E6" to="E18" end="270.00" number="20"/>
-	
-	<!-- Eb -->
-	<flow id="Eb_l" begin="0.00" from="E63" to="E34" end="270.00" number="30"/>
-	<flow id="Eb_s" begin="0.00" from="E63" to="E88" end="270.00" number="30"/>
-	<flow id="Eb_r" begin="0.00" from="E63" to="E102" end="270.00" number="30"/>
-    
-	<!-- Wb -->
-	<flow id="Wb_l" begin="0.00" from="E53" to="E102" end="270.00" number="40"/>
-	<flow id="Wb_s" begin="0.00" from="E53" to="E18" end="270.00" number="40"/>
-	<flow id="Wb_r" begin="0.00" from="E53" to="E34" end="270.00" number="40"/>
+    <flow id="f_0" begin="0.00" route="Eb_r" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_1" begin="0.00" route="Eb_s" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_10" begin="0.00" route="Sb_s" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_11" begin="0.00" route="Sb_l" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_2" begin="0.00" route="Eb_l" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_3" begin="0.00" route="Nb_r" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_4" begin="0.00" route="Nb_s" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_5" begin="0.00" route="Nb_l" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_6" begin="0.00" route="Wb_r" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_7" begin="0.00" route="Wb_s" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_8" begin="0.00" route="Wb_l" end="3600.00" vehsPerHour="1800.00"/>
+    <flow id="f_9" begin="0.00" route="Sb_r" end="3600.00" vehsPerHour="1800.00"/>
 </routes>

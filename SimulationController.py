@@ -1,9 +1,8 @@
 import sys
+import traci
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
-
 import pyqtgraph as pg
-
 import RunSimulation
 
 class TrafficSimulatorApp(QMainWindow):
@@ -29,43 +28,41 @@ class TrafficSimulatorApp(QMainWindow):
         bottom_layout = QHBoxLayout()
 
         # Traffic Lights
-        # self.traffic_sign = QLabel(self)
-        # pixmap = QGraphicsPixmapItem("")
-        self.traffic_sign = pg.PlotWidget(title="Traffic Sign(temp)")
-        # self.queue_graph.plotItem.setLabels(bottom='Time(s)', left="Count")
-        # self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-        # self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+        self.traffic_sign = pg.PlotWidget(title="Traffic Sign (temp)")
         self.traffic_sign.setBackground('w')
         state_layout.addWidget(self.traffic_sign)
 
         # Queue graph
         self.queue_graph = pg.PlotWidget(title="Queue")
-        # self.queue_graph.plotItem.setLabels(bottom='Time(s)', left="Count")
-        # self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-        # self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+        self.queue_graph.plotItem.setLabels(bottom='Bound', left="Queue Length")
+        self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+        self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
         self.queue_graph.setBackground('w')
+
         state_layout.addWidget(self.queue_graph)
 
         # Emissions graph
         self.emission_graph = pg.PlotWidget(title="Total Emissions")
-        self.emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(g)")
+        self.emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
         self.emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
         self.emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
         self.emission_graph.setBackground('w')
         self.emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-
-        # pen = pg.mkPen(color=(0, 255, 0), width=5, style=QtCore.Qt.SolidLine)
-        self.CO2_curve = self.emission_graph.plot(pen="g")
+        self.emission_curve = self.emission_graph.plot(pen="g")
         emission_layout.addWidget(self.emission_graph)
 
         # Emission graph by bound
         self.bound_emission_graph = pg.PlotWidget(title="Emissions by Bound")
-        self.bound_emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(g)")
+        self.bound_emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
         self.bound_emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
         self.bound_emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
         self.bound_emission_graph.setBackground('w')
+        self.bound_emission_graph.addLegend()
         self.bound_emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-
+        self.Sb_emission_curve = self.bound_emission_graph.plot(pen="r")
+        self.Nb_emission_curve = self.bound_emission_graph.plot(pen="b")
+        self.Eb_emission_curve = self.bound_emission_graph.plot(pen="g")
+        self.Wb_emission_curve = self.bound_emission_graph.plot(pen="c")
         emission_layout.addWidget(self.bound_emission_graph)
 
         start_button = QPushButton("Start Simulation")
@@ -95,7 +92,6 @@ class TrafficSimulatorApp(QMainWindow):
         font = graph_button.font()
         font.setPointSize(15)
         graph_button.setFont(font)
-        # graph_button.clicked.connect(self.get_data)
         bottom_layout.addWidget(graph_button)
 
         main_layout.addLayout(select_layout)
@@ -105,43 +101,86 @@ class TrafficSimulatorApp(QMainWindow):
         main_layout.addLayout(bottom_layout)
 
     def initialize_controller(self):
-        self.controller = RunSimulation.SumoController(config=RunSimulation.Config_SUMO)
+        self.controller = RunSimulation.SumoController(config=RunSimulation.Config_SUMO())
 
     def start_simulation(self):
         if self.controller is None:
             self.initialize_controller()  # Initialize the controller if it hasn't been initialized
         self.simulation_thread = SimulationThread(self.controller)
+        self.simulation_thread.results_signal.connect(self.draw_bar_chart)
         self.simulation_thread.results_signal.connect(self.update_co2_graph)
         self.simulation_thread.start()
         self.timer.start(1000)  # Start the timer to update the GUI every second
 
     def stop_simulation(self):
-        self.controller.traci.stop()
+        if self.controller:
+            traci.close()
+            self.timer.stop()
 
     def extract_button_clicked(self):
-        self.simulation_thread.bt_extract_excel()
+        if self.controller:
+            self.controller.extract_excel()
 
-    def custom_button3_clicked(self):
-        pass
+    @pyqtSlot(list)
+    def draw_bar_chart(self, section_results):
+        self.bar_x = []
+        self.bar_y = []
+        for result in section_results:
+            if result['Section'] == '0':
+                self.bar_x.append(1)
+                self.bar_y.append(result['Section_Volume'])
+            elif result['Section'] == '1':
+                self.bar_x.append(2)
+                self.bar_y.append(result['Section_Volume'])
+            elif result['Section'] == '2':
+                self.bar_x.append(3)
+                self.bar_y.append(result['Section_Volume'])
+            elif result['Section'] == '3':
+                self.bar_x.append(4)
+                self.bar_y.append(result['Section_Volume'])
+        self.queue_graph.clear()
+        bg = pg.BarGraphItem(x=self.bar_x, height=self.bar_y, width=0.6, brush='y', pen='y')
+        self.queue_graph.addItem(bg)
 
-    def show_graph(self):
-        self.graph_window = GraphWindow()
-
-    @pyqtSlot(list, list, list, list)
-    def update_co2_graph(self, detectors, detection_result_flow_merge, detection_result_co2_merge,
-                         detection_result_co2_flow_merge):
+    @pyqtSlot(list, list)
+    def update_co2_graph(self, section_results, total_results):
+        # Total Emission Graph
         self.x = []
         self.y = []
-        for row_idx, row_data in enumerate(detection_result_co2_merge):
-            CO2_value = 0
-            for col_idx, value in enumerate(row_data):
-                if col_idx == 0:
-                    self.x.append(int(value))
-                else:
-                    CO2_value += int(value)
-            CO2_value = CO2_value/1000
-            self.y.append(CO2_value)
-            self.CO2_curve.setData(self.x, self.y)
+
+        for total_result in total_results:
+            self.x.append(total_result['Time'])
+            self.y.append(total_result['Total_Emission'])
+        self.emission_curve.setData(self.x, self.y)
+
+        # Section Emission Graph
+        self.x0 = []
+        self.y0 = []
+        self.x1 = []
+        self.y1 = []
+        self.x2 = []
+        self.y2 = []
+        self.x3 = []
+        self.y3 = []
+
+        for result in section_results:
+            if result['Section'] == '0':
+                self.x0.append(result['Time'])
+                self.y0.append(result['Section_CO2_Emission'])
+            elif result['Section'] == '1':
+                self.x1.append(result['Time'])
+                self.y1.append(result['Section_CO2_Emission'])
+            elif result['Section'] == '2':
+                self.x2.append(result['Time'])
+                self.y2.append(result['Section_CO2_Emission'])
+            elif result['Section'] == '3':
+                self.x3.append(result['Time'])
+                self.y3.append(result['Section_CO2_Emission'])
+        self.Sb_emission_curve.setData(self.x0, self.y0)
+        self.Nb_emission_curve.setData(self.x1, self.y1)
+        self.Eb_emission_curve.setData(self.x2, self.y2)
+        self.Wb_emission_curve.setData(self.x3, self.y3)
+
     def update_data(self):
         # Periodically update the data from the simulation
         if self.simulation_thread is not None:
@@ -153,7 +192,7 @@ class TrafficSimulatorApp(QMainWindow):
         event.accept()
 
 class SimulationThread(QThread):
-    results_signal = pyqtSignal(list, list, list, list)
+    results_signal = pyqtSignal(list, list)
 
     def __init__(self, controller):
         super().__init__()
@@ -164,13 +203,9 @@ class SimulationThread(QThread):
 
     def emit_results(self):
         self.results_signal.emit(
-            self.controller.detectors,
-            self.controller.detection_result_flow_merge,
-            self.controller.detection_result_co2_merge,
-            self.controller.detection_result_co2_flow_merge
+            self.controller.section_results,
+            self.controller.total_results
         )
-    def bt_extract_excel(self):
-        self.controller.extract_excel()
 
 def my_exception_hook(exctype, value, traceback):
     # Print the error and traceback

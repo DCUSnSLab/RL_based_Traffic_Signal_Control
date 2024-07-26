@@ -1,7 +1,7 @@
 import os
-
 import traci
 import pandas as pd
+from collections import defaultdict
 
 class Config_SUMO:
     # SUMO Configuration File
@@ -17,75 +17,94 @@ class Config_SUMO:
 class Detector:
     def __init__(self, id):
         self.id = id
-        self.vehicle_list = []
-        self.vehicle_interval_list = []
-        self.vehicle_total_count = 0
-        self.vehicle_interval_count = 0
-        self.vehicle_total_co2 = 0
-        self.vehicle_interval_co2 = 0
-        self.tmp = 0
+        self.aux, self.bound, self.station_id, self.detector_id = self.parse_detector_id(id)
+        self.minInterval = 30
+        self.speed = 0
+        self.volume = 0
+        self.data = []
 
-    def update(self):
-        if self.id.find("in") != -1:
-            if traci.inductionloop.getLastStepVehicleIDs(self.id) in self.vehicle_list:
-                pass
-            else:
-                self.vehicle_interval_list += traci.inductionloop.getLastStepVehicleIDs(self.id)
-                self.vehicle_interval_count = len(list(set(self.vehicle_interval_list)))
-                for v_id in self.vehicle_interval_list:
-                    self.vehicle_interval_co2 += traci.vehicle.getCO2Emission(v_id)
-                    self.vehicle_total_co2 += traci.vehicle.getCO2Emission(v_id)
-        else:
-            if traci.inductionloop.getLastStepVehicleIDs(self.id) in self.vehicle_list:
-                self.vehicle_list.remove(traci.inductionloop.getLastStepVehicleIDs(self.id))
-            else:
-                pass
+    def parse_detector_id(self, id):
+        parts = id.split('_')
+        if len(parts) != 2 or not parts[0].startswith("Det"):
+            raise ValueError(f"Invalid detector ID format: {id}")
+        det_info = parts[1][3:]
+        aux = det_info[0]
+        bound = det_info[1]
+        station_id = det_info[1:6]
+        detector_id = det_info[6:]
+        return aux, bound, station_id, detector_id
 
-    def interval_reset(self):
-        self.vehicle_list += self.vehicle_interval_list
-        self.vehicle_interval_list = []
-        self.vehicle_total_count = len(list(set(self.vehicle_list)))
-        self.vehicle_interval_co2 = 0
+    def get_data(self):
+        vehicles = traci.inductionloop.getLastStepVehicleIDs(self.id)
+        self.volume = traci.inductionloop.getLastStepVehicleNumber(self.id)
+        self.speed = traci.inductionloop.getLastStepMeanSpeed(self.id)
+        co2_emission = sum(traci.vehicle.getCO2Emission(vehicle) for vehicle in vehicles) / 1000
+        self.data.append({
+            'Time': traci.simulation.getTime(),
+            'speed': self.speed,
+            'volume': self.volume,
+            'co2_emission': co2_emission
+        })
+        return co2_emission, self.volume
 
-def merge_data(list):
-    # Create a DataFrame from the detection results
-    df = pd.DataFrame(list)
+class Station:
+    def __init__(self, id, detectors):
+        self.id = id
+        self.dets = detectors
 
-    # Fill in missing values
-    df.fillna(0)
+    # def add_detector(self, detector):
+    #     self.dets.append(detector)
 
-    #  Combine rows with the same value in the time column
-    merge_df = df.groupby('Time').agg('sum').reset_index()
+    def collect_co2_emission(self):
+        total_co2_emission = 0
+        total_volume = 0
+        for det in self.dets:
+            co2_emission, volume = det.get_data()
+            total_co2_emission += co2_emission
+            total_volume += volume
+        return total_co2_emission, total_volume
 
-    list_result = merge_df.values.tolist()
+class Section:
+    def __init__(self, id, stations):
+        self.id = id
+        self.stations = stations
 
-    return list_result
+    def add_station(self, station):
+        self.stations.append(station)
+
+    def collect_data(self):
+        section_co2_emission = 0
+        section_volume = 0
+        for station in self.stations:
+            co2_emission, volume = station.collect_co2_emission()
+            section_co2_emission += co2_emission
+            section_volume += volume
+        return section_co2_emission, section_volume
 
 class SumoController:
-    def __init__(self,config):
+    def __init__(self, config):
         self.config = config
         self.__set_SUMO()
-        # Detector list
         self.detectors = [Detector(detector_id) for detector_id in self.__get_detector_ids(self.config)]
+        self.stations = {}
+        self.sections = {}
+        self.section_results = []
+        self.total_results = []
 
-        self.detection_result_flow = []
-        self.detection_result_co2 = []
-        self.detection_result_co2_flow = []
+        for detector in self.detectors:
+            if detector.station_id not in self.stations:
+                self.stations[detector.station_id] = []
+            self.stations[detector.station_id].append(detector)
 
-        self.detection_result_flow_merge = []
-        self.detection_result_co2_merge = []
-        self.detection_result_co2_flow_merge = []
+        self.station_objects = {station_id: Station(station_id, detectors) for station_id, detectors in self.stations.items()}
 
-        # Group detectors by direction
-        self.detector_groups = self.__group_detectors_by_direction(self.detectors)
+        for station_id in self.stations:
+            section_id = station_id[0]
+            if section_id not in self.sections:
+                self.sections[section_id] = []
+            self.sections[section_id].append(self.station_objects[station_id])
 
-        self.Eb_detection_result_co2 = []
-        self.Eb_detection_result_co2 = []
-        self.Eb_detection_result_co2 = []
-        self.Eb_detection_result_co2 = []
-
-        self.detection_co2=[]
-        pass
+        self.section_objects = {section_id : Section(section_id, stations) for section_id, stations in self.sections.items()}
 
     def __get_detector_ids(self, config):
         detector_ids = []
@@ -100,69 +119,43 @@ class SumoController:
         traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start"])
         traci.simulationStep()
 
-    def __group_detectors_by_direction(self, detectors):
-        groups = {}
-        for detector in detectors:
-            direction = detector.id.split('_')[0]
-            if direction not in groups:
-                groups[direction] = []
-            groups[direction].append(detector)
-        return groups
-
     def extract_excel(self):
-        # Create a DataFrame from the detection results
-        df1 = pd.DataFrame(self.detection_result_flow)
-        df2 = pd.DataFrame(self.detection_result_co2)
-        df3 = pd.DataFrame(self.detection_result_co2_flow)
-
-        # Fill in missing values
-        df1.fillna(0)
-        df2.fillna(0)
-        df3.fillna(0)
-
-        #  Combine rows with the same value in the time column
-        merge_df1 = df1.groupby('Time').agg('sum').reset_index()
-        merge_df2 = df2.groupby('Time').agg('sum').reset_index()
-        merge_df3 = df3.groupby('Time').agg('sum').reset_index()
-
-        excel_writer = pd.ExcelWriter("results_new.xlsx", engine="xlsxwriter")
-
-        merge_df1.to_excel(excel_writer, sheet_name="Flow", index=False)
-        merge_df2.to_excel(excel_writer, sheet_name="CO2", index=False)
-        merge_df3.to_excel(excel_writer, sheet_name="CO2_Flow", index=False)
-        excel_writer.close()
+        df = pd.DataFrame(self.section_results)
+        df.to_excel("results_new.xlsx", index=False)
 
     def run_simulation(self):
         step = 0
         while step <= 360:
             traci.simulationStep()
-            for detector in self.detectors:
-                detector.update()
-
-            if (step % 30) == 0:
-                # print("Current simulation time:", traci.simulation.getTime())
-                for detector in self.detectors:
-                    direction = detector.id.split('_')[0]
-                    if direction == "Eb":
-                        pass
-                    elif direction == "Nb":
-                        pass
-                    elif direction == "Wb":
-                        pass
-                    elif direction == "Sb":
-                        pass
-                    else:
-                        pass
-
-
-                    self.detection_result_flow.append({"Time": traci.simulation.getTime(), detector.id: int(f"{detector.vehicle_interval_count}")})
-                    self.detection_result_co2.append({"Time": traci.simulation.getTime(), detector.id: float(f"{detector.vehicle_interval_co2:.2f}")})
-                    self.detection_result_co2_flow.append({"Time": traci.simulation.getTime(), detector.id : f"{detector.vehicle_interval_co2:.2f}/{detector.vehicle_interval_count}"})
-                    detector.interval_reset()
-
-                self.detection_result_flow_merge = merge_data(self.detection_result_flow)
-                self.detection_result_co2_merge = merge_data(self.detection_result_co2)
-                self.detection_result_co2_flow_merge = merge_data(self.detection_result_co2_flow)
+            self.collect_data()
+            # if step % 30 == 0:
+            #     self.collect_data()
             step += 1
-
         traci.close()
+        self.extract_excel()
+
+    def Check_TrafficLight_State(self):
+        try:
+            signal_states = traci.trafficlight.getRedYellowGreenState("TLS_0")
+        except traci.exceptions.TraCIException:
+            signal_states = 'N/A'
+
+    def collect_data(self):
+        time = traci.simulation.getTime()
+        total_emission = 0
+        total_volume = 0
+        for section_id, section in self.section_objects.items():
+            section_co2_emission, section_volume = section.collect_data()
+            total_emission += section_co2_emission
+            total_volume += section_volume
+            self.section_results.append({
+                'Time': time,
+                'Section': section_id,
+                'Section_CO2_Emission': section_co2_emission,
+                'Section_Volume': section_volume
+            })
+        self.total_results.append({
+            'Time': time,
+            'Total_Emission': total_emission,
+            'Total_Volume': total_volume
+        })
