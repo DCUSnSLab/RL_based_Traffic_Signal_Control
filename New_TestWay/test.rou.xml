@@ -17,17 +17,5 @@
     <route id="Wb_l" edges="E44 E43 E41 E40 E39 E74 E77 E38 E37 E96 E97 E109 E98 E99 E107 E101 E102"/>
     <route id="Wb_r" edges="E44 E43 E41 E40 E39 E74 E77 E38 E31 E32 E33 E34"/>
     <route id="Wb_s" edges="E44 E43 E41 E40 E39 E74 E77 E38 E37 E9 E10 E11 E12 E14 E15 E16 E17 E18"/>
-    <!-- Vehicles, persons and containers (sorted by depart) -->
-    <flow id="f_0" begin="0.00" route="Eb_r" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_1" begin="0.00" route="Eb_s" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_10" begin="0.00" route="Sb_s" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_11" begin="0.00" route="Sb_l" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_2" begin="0.00" route="Eb_l" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_3" begin="0.00" route="Nb_r" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_4" begin="0.00" route="Nb_s" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_5" begin="0.00" route="Nb_l" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_6" begin="0.00" route="Wb_r" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_7" begin="0.00" route="Wb_s" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_8" begin="0.00" route="Wb_l" end="3600.00" vehsPerHour="1800.00"/>
-    <flow id="f_9" begin="0.00" route="Sb_r" end="3600.00" vehsPerHour="1800.00"/>
+
 </routes>
