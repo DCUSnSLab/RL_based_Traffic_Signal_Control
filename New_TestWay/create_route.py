@@ -2,10 +2,10 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
-# Load the Excel file
+# 엑셀 파일 로드
 file_path = 'intersection_traffic.xlsx'
 
-# Define the route mapping for each direction
+# 각 방향에 대한 경로 매핑 정의
 route_mappings = {
     'eastbound': {
         'left': 'Eb_l',
@@ -29,11 +29,11 @@ route_mappings = {
     }
 }
 
-# Load the existing routes from the XML file
+# 기존 경로 XML 파일 로드
 tree = ET.parse('test.rou.xml')
 root = tree.getroot()
 
-# Define vehicle types based on SUMO's abstract vehicle classes
+# SUMO의 추상 차량 클래스를 기반으로 차량 유형 정의
 vehicle_types = {
     'car': {"id": "car", "vClass": "passenger"},
     'hov': {"id": "hov", "vClass": "passenger"},
@@ -43,7 +43,7 @@ vehicle_types = {
     'trailer': {"id": "trailer", "vClass": "trailer"}
 }
 
-# Add vehicle type definitions to the XML
+# 차량 유형 정의를 XML에 추가
 for vehicle_type in vehicle_types.values():
     ET.SubElement(
         root,
@@ -52,14 +52,15 @@ for vehicle_type in vehicle_types.values():
         vClass=vehicle_type["vClass"]
     )
 
+flows = []
 
-# Function to add flows from a specific sheet
-def add_flows_from_sheet(sheet_name, route_mapping):
+
+# 특정 시트에서 흐름을 추가하는 함수
+def add_flows_from_sheet(sheet_name, route_mapping, flow_id):
     df = pd.read_excel(file_path, sheet_name=sheet_name, header=0, usecols="A:T", nrows=26)
-    morning_df = df.iloc[:12]  # Assuming each row represents 15 minutes
+    morning_df = df.iloc[:12]  # 각 행이 15분을 나타낸다고 가정
 
-    flow_id = len(root.findall('flow'))  # Ensure unique flow IDs across all sheets
-    time_interval = 15 * 60  # 15 minutes in seconds
+    time_interval = 15 * 60  # 15분을 초로 변환
 
     for index, row in morning_df.iterrows():
         start_time = index * time_interval
@@ -70,36 +71,54 @@ def add_flows_from_sheet(sheet_name, route_mapping):
                 if flow_key in row:
                     flow_value = int(row[flow_key])
                     if flow_value > 0:
-                        ET.SubElement(
-                            root,
-                            'flow',
-                            id=f'f_{flow_id}',
-                            begin=str(start_time),
-                            end=str(end_time),
-                            route=route_mapping[route],
-                            number=str(flow_value),
-                            type=vehicle_type
-                        )
+                        flows.append({
+                            'id': f'f_{flow_id}',
+                            'begin': start_time,
+                            'end': end_time,
+                            'route': route_mapping[route],
+                            'number': flow_value,
+                            'type': vehicle_type
+                        })
                         flow_id += 1
+    return flow_id
 
 
-# Process each sheet
+# 흐름 ID 카운터 초기화
+flow_id = 0
+
+# 각 시트를 처리하고 방향별로 흐름을 그룹화
 for direction, route_mapping in route_mappings.items():
-    add_flows_from_sheet(direction, route_mapping)
+    flow_id = add_flows_from_sheet(direction, route_mapping, flow_id)
+
+# 흐름을 정렬합니다.
+flows.sort(key=lambda x: (x['begin'], x['end'], x['route'], x['id']))
+
+# 정렬된 흐름을 XML에 추가합니다.
+for flow in flows:
+    ET.SubElement(
+        root,
+        'flow',
+        id=flow['id'],
+        begin=str(flow['begin']),
+        end=str(flow['end']),
+        route=flow['route'],
+        number=str(flow['number']),
+        type=flow['type']
+    )
 
 
-# Pretty-print the XML
+# XML을 예쁘게 출력하는 함수
 def pretty_print_xml(element):
-    """Return a pretty-printed XML string for the Element."""
+    """요소에 대한 예쁘게 출력된 XML 문자열 반환."""
     rough_string = ET.tostring(element, 'utf-8')
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")
 
 
-# Get the pretty-printed XML string
+# 예쁘게 출력된 XML 문자열 가져오기
 pretty_xml_as_string = pretty_print_xml(root)
 
-# Write the pretty-printed XML to a file
+# 예쁘게 출력된 XML을 파일에 쓰기
 output_file_path = 'generated_flows.xml'
 with open(output_file_path, 'w', encoding='utf-8') as f:
     f.write(pretty_xml_as_string)
