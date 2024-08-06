@@ -204,7 +204,7 @@ class SimulationThread(QThread):
     def emit_results(self):
         self.results_signal.emit(
             self.controller.section_results,
-            self.controller.total_results
+            self.controller.total_results,
         )
 
 def my_exception_hook(exctype, value, traceback):

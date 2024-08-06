@@ -7,9 +7,9 @@
 
 	<input>
 		<!--additional-files value="test.add.xml"/-->
-		<additional-files value="New_detector.add.xml"/>
+		<additional-files value="new_test.add.xml"/>
 		<net-file value="test.net.xml"/>
-		<route-files value="generated_flows.xml"/>
+		<route-files value="generated_flows_am.xml"/>
 		<gui-settings-file value="test_cfg.settings.xml"/>
 	</input>
 
