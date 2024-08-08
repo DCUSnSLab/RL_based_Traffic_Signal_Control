@@ -10,10 +10,11 @@ class Config_SUMO:
     # SUMO Scenario File Path
     scenario_path = "New_TestWay"
     # SUMO Scenario File(.add.xml)
-    scenario_file = "New_detector.add.xml"
+    scenario_file = "new_test.add.xml"
 
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
+# Detector
 class Detector:
     def __init__(self, id):
         self.id = id
@@ -115,11 +116,20 @@ class Section:
                     else:
                         pass
         self.section_queue = len(self.section_vehicles)
+        # self.section_co2_emission += sum(traci.vehicle.getCO2Emission(vehicle) for vehicle in self.section_vehicles) / 1000
         for vehicle in self.section_vehicles:
             if traci.vehicle.getCO2Emission(vehicle) < 0:
                 pass
             else:
                 self.section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
+        # if self.section_co2_emission < 0:
+        #     print(self.section_vehicles)
+        #     for vehicle in self.section_vehicles:
+        #         if traci.vehicle.getCO2Emission(vehicle)<0:
+        #             print(vehicle)
+        #             print(traci.vehicle.getCO2Emission(vehicle))
+        #         else:
+        #             pass
         return self.section_co2_emission, self.section_volume, self.section_queue, list(self.section_vehicles)
 
     def check_DilemmaZone(self, time, traffic_light_bound, MinGreenTime, MaxGreenTime):
