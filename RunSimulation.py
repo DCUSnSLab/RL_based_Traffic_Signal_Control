@@ -26,6 +26,16 @@ class Direction(Enum):
     EB = 2
     WB = 3
 
+class InputStation(Enum):
+    SB = '000000'
+    NB = '010021'
+    EB = '020018'
+    WB = '030017'
+
+def get_input_station_value(direction: Direction) -> str:
+    # Direction의 name으로 InputStation을 찾아서 value를 반환
+    return InputStation[direction.name].value
+
 # Detector
 class Detector:
     def __init__(self, id):
@@ -125,7 +135,7 @@ class Section:
         self.direction = None if len(self.stations) == 0 else self.stations[0].direction
         self.section_co2_emission = 0
         self.section_volume = 0
-        self.section_queue = 0
+        self.traffic_queue = 0
         self.section_vehicles = set()
         self.stop_lane = self.StopLane_position()
         self.in_dilemmaZone=set()
@@ -214,7 +224,7 @@ class Section:
             return check
 
     def collect_data(self):
-        return self.section_co2_emission, self.section_volume, self.section_queue, list(self.section_vehicles)
+        return self.section_co2_emission, self.section_volume, self.traffic_queue, list(self.section_vehicles)
 
     def update(self):
         self.section_co2_emission = 0
@@ -222,13 +232,14 @@ class Section:
         removal_veh = list()
         for i, station in enumerate(self.stations):
             station.update()
-
-            #input station
             if i == 0:
-                self.section_queue += station.getVolume()
+                self.section_volume += station.getVolume()
+            #update input station data according to InputStation Setup
+            if station.id == get_input_station_value(self.direction):
+                self.traffic_queue += station.getVolume()
                 self.section_vehicles.update(station.getInputVehIds())
 
-            self.section_queue -= station.getExitVolume()
+            self.traffic_queue -= station.getExitVolume()
             self.section_vehicles.difference_update(station.getExitVehIds())
             # if self.id == '2':
             #     if station.getExitVolume() > 0:
@@ -261,6 +272,7 @@ class SumoController:
         self.total_results = deque()
         self.traffic_light_id = "TLS_0"
         self.total_co2_emission = 0
+        self.total_volume = 0
         self.__get_station()
         self.station_objects = {station_id: Station(station_id, detectors) for station_id, detectors in self.stations.items()}
         self.__get_section()
@@ -301,12 +313,12 @@ class SumoController:
 
         co2_emission_df = df.pivot(index='Time', columns='Section', values='Section_CO2_Emission')
         volume_df = df.pivot(index='Time', columns='Section', values='Section_Volume')
-        queue_df = df.pivot(index='Time', columns='Section', values='Section_Queue')
+        queue_df = df.pivot(index='Time', columns='Section', values='traffic_queue')
 
         with pd.ExcelWriter('section_results.xlsx') as writer:
             co2_emission_df.to_excel(writer, sheet_name='Section_CO2_Emission')
             volume_df.to_excel(writer, sheet_name='Section_Volume')
-            queue_df.to_excel(writer, sheet_name='Section_Queue')
+            queue_df.to_excel(writer, sheet_name='traffic_queue')
 
         print("Maked Excel")
 
@@ -381,12 +393,8 @@ class SumoController:
                         traci.trafficlight.setPhase("TLS_0", next_phase_index)
                 count = 0
 
-            #update Section
-            for section_id, section in self.section_objects.items():
-                section.update()
-
             self.make_data()
-            self.make_total_co2(step)
+            self.make_total(step)
 
             step += 1
 
@@ -405,28 +413,31 @@ class SumoController:
         append_result = self.section_results.append
 
         for section_id, section in self.section_objects.items():
-            section_co2_emission, section_volume, section_queue, section_vehicles = section.collect_data()
-            section_vehicles.sort()
+            section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
+
+            #make total volume
+            self.total_volume += section_volume
+
             #print("%s - v: %d, Q: %d"%(section_id, section_volume, section_queue))
             append_result({
                 'Time': time,
                 'Section': section_id,
                 'Section_CO2_Emission': section_co2_emission,
                 'Section_Volume': section_volume,
-                'Section_Queue': section_queue,
+                'traffic_queue': traffic_queue,
                 'Section_Vehicles': section_vehicles,
                 'sectionBound': str(section.direction)
             })
 
-    def make_total_co2(self, step):
+    def make_total(self, step):
         time = traci.simulation.getTime()
         vehicle_ids = traci.vehicle.getIDList()
-        self.total_co2_emission = 0
         append_result = self.total_results.append
         for vehicle_id in vehicle_ids:
             self.total_co2_emission += traci.vehicle.getCO2Emission(vehicle_id)
-
+        print(self.total_volume)
         append_result({
             'Time': time,
-            'Total_Emission': self.total_co2_emission
+            'Total_Emission': self.total_co2_emission,
+            'Total_Volume': self.total_volume
         })
