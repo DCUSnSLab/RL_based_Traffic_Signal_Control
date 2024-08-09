@@ -35,7 +35,8 @@
     <inductionLoop id="Det_00001000" lane="E2_3" pos="20.20" period="300.00" file="Sb.xml"/>
 	<inductionLoop id="Det_00001001" lane="E2_2" pos="20.20" period="300.00" file="Sb.xml"/>
     <inductionLoop id="Det_00001002" lane="E2_1" pos="20.20" period="300.00" file="Sb.xml"/>
-    <inductionLoop id="Det_10001003" lane="E2_0" pos="20.20" period="300.00" file="Sb.xml"/>
+    <inductionLoop id="Det_00001003" lane="E2_0" pos="20.20" period="300.00" file="Sb.xml"/>
+    <inductionLoop id="Det_10001004" lane="E1_0" pos="02.00" period="300.00" file="Sb.xml"/>
     <inductionLoop id="Det_10001100" lane="E0_3" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
     <inductionLoop id="Det_10001101" lane="E0_2" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
     <inductionLoop id="Det_10001102" lane="E0_1" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
