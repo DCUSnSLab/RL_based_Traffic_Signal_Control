@@ -239,6 +239,8 @@ class SumoController:
         self.__get_section()
         self.section_objects = {section_id: Section(section_id, stations) for section_id, stations in self.sections.items()}
         self.original_phase_durations={}
+        self.stepbySec = 1
+        self.colDuration = 30 #seconds
 
     def __get_detector_ids(self, config):
         detector_ids = []
@@ -317,37 +319,15 @@ class SumoController:
             else:
                 bound = "yellow"
                 count = 0
+
+            #update Section
             for section_id, section in self.section_objects.items():
                 section.update()
-                # if bound == "yellow":
-                #     pass
-                # else:
-                #     MaxGreenTime = MinGreenTime + 10
-                #     time = traci.trafficlight.getPhaseDuration("TLS_0")
-                #     check_control = section.check_DilemmaZone(time, bound, MinGreenTime, MaxGreenTime)
-                #     if check_control == True:
-                #         new_duration = current_phase.duration+1
-                #         remaining_time = traci.trafficlight.getNextSwitch("TLS_0")
-                #         traci.trafficlight.setPhaseDuration("TLS_0", new_duration)
-                #         count+=1
-                #
-                #         #print("time", time)
-                #         #print("remaining_time", remaining_time)
-                #         #print("duration +", count)
-                #     else:
-                #         pass
 
-            self.check_total_co2(step)
+            self.make_data()
+            self.make_total_co2(step)
 
-            # check traffic state(interval)
-            if step % 1 == 0:
-                self.collect_data()
             step += 1
-
-            end_time = time.time()
-
-            #execution_time = end_time - start_time
-            #print(f"실행 시간: {execution_time}초")
 
         traci.close()
 
@@ -358,7 +338,7 @@ class SumoController:
             signal_states = 'N/A'
         return signal_states
 
-    def collect_data(self):
+    def make_data(self):
         #print('collect data')
         time = traci.simulation.getTime()
         append_result = self.section_results.append
@@ -377,15 +357,15 @@ class SumoController:
                 'sectionBound': str(section.direction)
             })
 
-    def check_total_co2(self, step):
+    def make_total_co2(self, step):
         time = traci.simulation.getTime()
         vehicle_ids = traci.vehicle.getIDList()
+        self.total_co2_emission = 0
         append_result = self.total_results.append
         for vehicle_id in vehicle_ids:
             self.total_co2_emission += traci.vehicle.getCO2Emission(vehicle_id)
-        if step % 30 == 0:
-            append_result({
-                'Time': time,
-                'Total_Emission': self.total_co2_emission
-            })
-            self.total_co2_emission = 0
+
+        append_result({
+            'Time': time,
+            'Total_Emission': self.total_co2_emission
+        })

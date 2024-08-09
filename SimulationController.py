@@ -39,7 +39,7 @@ class TrafficSimulatorApp(QMainWindow):
 
             # Queue graph
             self.queue_graph = pg.PlotWidget(title="Queue")
-            self.queue_graph.plotItem.setLabels(bottom='Bound', left="Queue Length")
+            self.queue_graph.plotItem.setLabels(bottom='Direction', left="Queue Length (Number of Vehicles)")
             self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
             self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
             self.queue_graph.setBackground('w')
@@ -71,7 +71,7 @@ class TrafficSimulatorApp(QMainWindow):
             self.Wb_emission_curve = self.bound_emission_graph.plot(pen="c")
 
             # Y축 범위 설정
-            self.bound_emission_graph.plotItem.setYRange(0, 300)
+            self.bound_emission_graph.plotItem.setYRange(0, 500)
 
             # ViewBox 좌표계를 사용하여 라벨을 고정된 위치에 추가
             vb = self.bound_emission_graph.getPlotItem().getViewBox()
