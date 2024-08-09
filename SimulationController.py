@@ -33,9 +33,15 @@ class TrafficSimulatorApp(QMainWindow):
 
         if self.DEBUG is not True:
             # Traffic Lights
-            self.traffic_sign = pg.PlotWidget(title="Traffic Sign (temp)")
-            self.traffic_sign.setBackground('w')
-            state_layout.addWidget(self.traffic_sign)
+            self.total_volume = pg.PlotWidget(title="Total Volume")
+            self.total_volume.plotItem.setLabels(bottom='Time(s)', left="num of veh")
+            self.total_volume.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+            self.total_volume.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+            self.total_volume.setBackground('w')
+            self.total_volume.setStyleSheet(
+                "border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
+            self.total_volume_curve = self.total_volume.plot(pen="g")
+            state_layout.addWidget(self.total_volume)
 
             # Queue graph
             self.queue_graph = pg.PlotWidget(title="Queue")
@@ -160,19 +166,19 @@ class TrafficSimulatorApp(QMainWindow):
                 #print('Sid : ', result['Section'], ', Queue : ', result['Section_Queue'])
                 if result['Section'] == '0':
                     self.bar_x.append(1)
-                    self.bar_y.append(result['Section_Queue'])
+                    self.bar_y.append(result['traffic_queue'])
                     labels[1] = result['sectionBound']
                 elif result['Section'] == '1':
                     self.bar_x.append(2)
-                    self.bar_y.append(result['Section_Queue'])
+                    self.bar_y.append(result['traffic_queue'])
                     labels[2] = result['sectionBound']
                 elif result['Section'] == '2':
                     self.bar_x.append(3)
-                    self.bar_y.append(result['Section_Queue'])
+                    self.bar_y.append(result['traffic_queue'])
                     labels[3] = result['sectionBound']
                 elif result['Section'] == '3':
                     self.bar_x.append(4)
-                    self.bar_y.append(result['Section_Queue'])
+                    self.bar_y.append(result['traffic_queue'])
                     labels[4] = result['sectionBound']
             self.queue_graph.clear()
             bg = pg.BarGraphItem(x=self.bar_x, height=self.bar_y, width=0.6, brush='y', pen='y')
@@ -215,6 +221,13 @@ class TrafficSimulatorApp(QMainWindow):
         # 필터 적용
         filtered_y = self.low_pass_filter(self.y)
         self.emission_curve.setData(self.x, filtered_y)
+
+        # Total Volume
+        total_x = [result['Time'] for result in total_results]
+        total_y = [result['Total_Volume'] for result in total_results]
+
+        # 필터 적용
+        self.total_volume_curve.setData(total_x, total_y)
 
         # Section Emission Graph 데이터 준비
         sections = {
