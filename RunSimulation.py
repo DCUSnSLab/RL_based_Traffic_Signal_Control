@@ -1,4 +1,6 @@
 import os
+from enum import Enum
+
 import traci
 import pandas as pd
 import math
@@ -6,7 +8,7 @@ from collections import defaultdict
 
 from traci import TraCIException
 import time
-
+from collections import deque
 
 class Config_SUMO:
     # SUMO Configuration File
@@ -17,6 +19,12 @@ class Config_SUMO:
     scenario_file = "new_test.add.xml"
 
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
+
+class Direction(Enum):
+    SB = 0
+    NB = 1
+    EB = 2
+    WB = 3
 
 # Detector
 class Detector:
@@ -33,7 +41,7 @@ class Detector:
             raise ValueError(f"Invalid detector ID format: {id}")
         det_info = parts[1]
         aux = det_info[0]
-        bound = det_info[1]
+        bound = Direction(int(det_info[1]))
         station_id = det_info[0:6]
         detector_id = det_info[6:]
         return aux, bound, station_id, detector_id
@@ -65,6 +73,7 @@ class Station:
     def __init__(self, id, detectors):
         self.id = id
         self.dets = detectors
+        self.direction = None if len(self.dets) == 0 else self.dets[0].bound
         self.volume = 0
         self.exitVolume = 0
         self.inputVeh = set()
@@ -113,6 +122,7 @@ class Section:
     def __init__(self, id, stations):
         self.id = id
         self.stations = stations
+        self.direction = None if len(self.stations) == 0 else self.stations[0].direction
         self.section_co2_emission = 0
         self.section_volume = 0
         self.section_queue = 0
@@ -220,8 +230,8 @@ class SumoController:
         self.detectors = [Detector(detector_id) for detector_id in self.__get_detector_ids(self.config)]
         self.stations = {}
         self.sections = {}
-        self.section_results = []
-        self.total_results = []
+        self.section_results = deque()
+        self.total_results = deque()
         self.traffic_light_id = "TLS_0"
         self.total_co2_emission = 0
         self.__get_station()
@@ -282,7 +292,7 @@ class SumoController:
         # current_phase = logic.phases[current_phase_index]
 
         while step <= 11700:
-            start_time = time.time()
+            #start_time = time.time()
             traci.simulationStep()
 
             current_phase_index = traci.trafficlight.getPhase("TLS_0")
@@ -336,8 +346,8 @@ class SumoController:
 
             end_time = time.time()
 
-            execution_time = end_time - start_time
-            print(f"실행 시간: {execution_time}초")
+            #execution_time = end_time - start_time
+            #print(f"실행 시간: {execution_time}초")
 
         traci.close()
 
@@ -351,26 +361,30 @@ class SumoController:
     def collect_data(self):
         #print('collect data')
         time = traci.simulation.getTime()
+        append_result = self.section_results.append
+
         for section_id, section in self.section_objects.items():
             section_co2_emission, section_volume, section_queue, section_vehicles = section.collect_data()
             section_vehicles.sort()
             #print("%s - v: %d, Q: %d"%(section_id, section_volume, section_queue))
-            self.section_results.append({
+            append_result({
                 'Time': time,
                 'Section': section_id,
                 'Section_CO2_Emission': section_co2_emission,
                 'Section_Volume': section_volume,
                 'Section_Queue': section_queue,
-                'Section_Vehicles': section_vehicles
+                'Section_Vehicles': section_vehicles,
+                'sectionBound': str(section.direction)
             })
 
     def check_total_co2(self, step):
         time = traci.simulation.getTime()
         vehicle_ids = traci.vehicle.getIDList()
+        append_result = self.total_results.append
         for vehicle_id in vehicle_ids:
             self.total_co2_emission += traci.vehicle.getCO2Emission(vehicle_id)
         if step % 30 == 0:
-            self.total_results.append({
+            append_result({
                 'Time': time,
                 'Total_Emission': self.total_co2_emission
             })
