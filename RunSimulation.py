@@ -234,10 +234,11 @@ class Section:
             station.update()
             if i == 0:
                 self.section_volume += station.getVolume()
+                self.section_vehicles.update(station.getInputVehIds())
+
             #update input station data according to InputStation Setup
             if station.id == get_input_station_value(self.direction):
                 self.traffic_queue += station.getVolume()
-                self.section_vehicles.update(station.getInputVehIds())
 
             self.traffic_queue -= station.getExitVolume()
             self.section_vehicles.difference_update(station.getExitVehIds())
