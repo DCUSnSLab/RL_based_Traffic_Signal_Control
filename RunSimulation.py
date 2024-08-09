@@ -37,16 +37,6 @@ class Detector:
         detector_id = det_info[6:]
         return aux, bound, station_id, detector_id
 
-    # def get_data(self):
-    #     vehicle_ids = traci.inductionloop.getLastStepVehicleIDs(self.id)
-    #     self.volume = traci.inductionloop.getLastStepVehicleNumber(self.id)
-    #     if self.aux == "1":
-    #         self.del_vehicle(vehicle_ids)
-    #     else:
-    #         self.vehicles.update(vehicle_ids)
-    #     co2_emission = sum(traci.vehicle.getCO2Emission(vehicle) for vehicle in vehicle_ids) / 1000
-    #     return co2_emission, self.volume, list(self.vehicles)
-
     def get_data(self):
         vehicle_ids = traci.inductionloop.getLastStepVehicleIDs(self.id)
         if self.aux == "1":
@@ -98,6 +88,7 @@ class Section:
         self.section_queue = 0
         self.section_vehicles = set()
         self.stop_lane = self.StopLane_position()
+        self.in_dilemmaZone=set()
 
     def collect_data(self):
         self.section_co2_emission = 0
@@ -122,37 +113,43 @@ class Section:
                 pass
             else:
                 self.section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
-        # if self.section_co2_emission < 0:
-        #     print(self.section_vehicles)
-        #     for vehicle in self.section_vehicles:
-        #         if traci.vehicle.getCO2Emission(vehicle)<0:
-        #             print(vehicle)
-        #             print(traci.vehicle.getCO2Emission(vehicle))
-        #         else:
-        #             pass
         return self.section_co2_emission, self.section_volume, self.section_queue, list(self.section_vehicles)
 
     def check_DilemmaZone(self, time, traffic_light_bound, MinGreenTime, MaxGreenTime):
         if traffic_light_bound == self.id:
+            DilemmaZone_results = []
             for vehicle in self.section_vehicles:
                 vehicle_distance_list = []
                 vehicle_position = traci.vehicle.getPosition(vehicle)
                 vehicle_x, vehicle_y = vehicle_position
                 # vehicle_distance = math.sqrt((self.stop_x - vehicle_x) ** 2 + (self.stop_y - vehicle_y) ** 2)
+                # for i in range(0, len(self.stop_lane),2):
+                #     stop_lane_x, stop_lane_y = self.stop_lane[i:i+2]
+                #     distance = math.sqrt((stop_lane_x - vehicle_x) ** 2 + (stop_lane_y - vehicle_y) ** 2)
+                #     vehicle_distance_list.append(distance)
+                # vehicle_distance = min(vehicle_distance_list)
+                # vehicle_speed = traci.vehicle.getSpeed(vehicle)
+                # vehicle_type = traci.vehicle.getTypeID(vehicle)
+                # check_value = self.DilemmaZoneControlSignal(time, vehicle_speed, vehicle_distance, vehicle_type, MinGreenTime, MaxGreenTime)
                 for i in range(0, len(self.stop_lane),2):
                     stop_lane_x, stop_lane_y = self.stop_lane[i:i+2]
                     distance = math.sqrt((stop_lane_x - vehicle_x) ** 2 + (stop_lane_y - vehicle_y) ** 2)
-                    vehicle_distance_list.append(distance)
-                vehicle_distance = min(vehicle_distance_list)
-                vehicle_speed = traci.vehicle.getSpeed(vehicle)
-                vehicle_type = traci.vehicle.getTypeID(vehicle)
-                check_value = self.DilemmaZoneControl(time, vehicle_speed, vehicle_distance, vehicle_type, MinGreenTime, MaxGreenTime)
-                if check_value == True:
-                    return True
-                else:
-                    return False
+                    if distance <= 120:
+                        vehicle_speed = traci.vehicle.getSpeed(vehicle)
+                        vehicle_type = traci.vehicle.getTypeID(vehicle)
+                        check_value = self.DilemmaZoneControlSignal(time, vehicle_speed, distance, vehicle_type, MinGreenTime, MaxGreenTime)
+                        DilemmaZone_results.append(check_value)
+                    else:
+                        pass
+            if "pass" in DilemmaZone_results:
+                return "pass"
+            elif "pass" not in DilemmaZone_results and "yellow" in DilemmaZone_results:
+                return "yellow"
+            else:
+                return "none"
         else:
-            pass
+            check_value = "none"
+            return check_value
 
     def StopLane_position(self):
         # print(type(self.id))
@@ -166,28 +163,39 @@ class Section:
             stop_lane += stop_lane_position
         return stop_lane
 
-    def DilemmaZoneControl(self, time, s, d, car_type, MinGreenTime, MaxGreenTime):
+    def DilemmaZoneControlSignal(self, time, s, d, car_type, MinGreenTime, MaxGreenTime):
+        check = "none"
         s = s*3.6
         if time >= MinGreenTime:
-            if time < MaxGreenTime:
+            # if time < MaxGreenTime:
+            if MaxGreenTime <= 10:
                 if car_type == "passenger":
                     T1 = s / 14
                     D1 = s * T1
                     if D1 < d:
-                        # signal extension
-                        return True
+                        check="yellow"
+                        return check
                     else:
-                        return False
+                        # signal extension
+                        print(s, d, car_type, D1)
+                        check = "pass"
+                        return check
                 else:
                     T2 = s / 9
                     D2 = s * T2
                     if D2 < d:
-                        # signal extension
-                        return True
+                        check = "yellow"
+                        return check
                     else:
-                        return False
+                        # signal extension
+                        print(s, d, car_type, D2)
+                        check = "pass"
+                        return check
             else:
-                return False
+                check="yellow"
+                return check
+        else:
+            return check
 
     def IntervalReset(self):
         self.section_co2_emission = 0
@@ -252,19 +260,17 @@ class SumoController:
         co2_emission_df = df.pivot(index='Time', columns='Section', values='Section_CO2_Emission')
         volume_df = df.pivot(index='Time', columns='Section', values='Section_Volume')
         queue_df = df.pivot(index='Time', columns='Section', values='Section_Queue')
-        # vehicle_df = df.pivot(index='Time', columns='Section', values='Section_Vehicles')
 
         with pd.ExcelWriter('section_results.xlsx') as writer:
             co2_emission_df.to_excel(writer, sheet_name='Section_CO2_Emission')
             volume_df.to_excel(writer, sheet_name='Section_Volume')
             queue_df.to_excel(writer, sheet_name='Section_Queue')
-            # vehicle_df.to_excel(writer, sheet_name='Section_Vehicles')
 
         print("Maked Excel")
 
     def run_simulation(self):
         MinGreenTime = 0
-        count=0
+        extended_time = 0
         step = 0
         # current_phase_index = traci.trafficlight.getPhase("TLS_0")
         # logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
@@ -275,7 +281,16 @@ class SumoController:
 
             current_phase_index = traci.trafficlight.getPhase("TLS_0")
             logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
+            num_phases = len(logic.phases)
+            next_phase_index = (current_phase_index + 1) % num_phases
             current_phase = logic.phases[current_phase_index]
+
+            current_simulation_time = traci.simulation.getTime()
+            current_phase_duration = traci.trafficlight.getPhaseDuration("TLS_0")
+            next_switch_time = traci.trafficlight.getNextSwitch("TLS_0")
+            elapsed_time = current_simulation_time - (next_switch_time - current_phase_duration)
+
+            remaining_time = next_switch_time - current_simulation_time
 
             tls = self.Check_TrafficLight_State()
             # print(tls)
@@ -293,33 +308,51 @@ class SumoController:
                 MinGreenTime = current_phase.minDur
             else:
                 bound = "yellow"
-                count = 0
+                extended_time = 0
 
-            if bound == "yellow":
-                pass
-            else:
-                MaxGreenTime = MinGreenTime + 10
-                time = traci.trafficlight.getPhaseDuration("TLS_0")
-                for section_id, section in self.section_objects.items():
-                    section.update()
-                    check_control = section.check_DilemmaZone(time, bound, MinGreenTime, MaxGreenTime)
-                    if check_control == True:
-                        new_duration = current_phase.duration+1
-                        remaining_time = traci.trafficlight.getNextSwitch("TLS_0")
+            MaxGreenTime = MinGreenTime + 10
+
+            for section_id, section in self.section_objects.items():
+                section.update()
+                if bound == "yellow":
+                    pass
+                else:
+                    # MaxGreenTime = MinGreenTime + 10
+                    # current_simulation_time = traci.simulation.getTime()
+                    # current_phase_duration = traci.trafficlight.getPhaseDuration("TLS_0")
+                    # next_switch_time = traci.trafficlight.getNextSwitch("TLS_0")
+                    # elapsed_time = current_simulation_time - (next_switch_time - current_phase_duration)
+                    # check_control = section.check_DilemmaZone(elapsed_time, bound, MinGreenTime, MaxGreenTime)
+                    check_control = section.check_DilemmaZone(elapsed_time, bound, MinGreenTime, extended_time)
+                    if check_control == "pass":
+                        print("*" * 50)
+                        print("sectino id :", section_id)
+                        print("increase 1s")
+                        print("extended count", extended_time)
+                        new_duration = remaining_time+1
                         traci.trafficlight.setPhaseDuration("TLS_0", new_duration)
-                        count+=1
-                        print("step", step)
-                        print("time", time)
-                        print("remaining_time", remaining_time)
-                        print("duration +", count)
+                        print("*" * 50)
+                        extended_time += 1
+                    elif check_control == "yellow":
+                        traci.trafficlight.setPhase("TLS_0", next_phase_index)
                     else:
                         pass
 
             self.check_total_co2(step)
 
+            # print("now step", step)
+            # print("now state", tls)
+            # print("now state duratoin", current_phase_duration)
+            # print("min green time", MinGreenTime)
+            # print("max green time", MaxGreenTime)
+            # print("elapsed_time", elapsed_time)
+            # print("remaining_time", remaining_time)
+            # print("")
+
             # check traffic state(interval)
             if step % 30 == 0:
                 self.collect_data()
+
             step += 1
 
         traci.close()
