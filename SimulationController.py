@@ -8,6 +8,7 @@ import RunSimulation
 class TrafficSimulatorApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.DEBUG = False
         self.controller = None  # Initialize the controller to None initially
         self.initUI()
         self.timer = QTimer(self)
@@ -27,43 +28,44 @@ class TrafficSimulatorApp(QMainWindow):
         emission_layout = QHBoxLayout()
         bottom_layout = QHBoxLayout()
 
-        # Traffic Lights
-        self.traffic_sign = pg.PlotWidget(title="Traffic Sign (temp)")
-        self.traffic_sign.setBackground('w')
-        state_layout.addWidget(self.traffic_sign)
+        if self.DEBUG is not True:
+            # Traffic Lights
+            self.traffic_sign = pg.PlotWidget(title="Traffic Sign (temp)")
+            self.traffic_sign.setBackground('w')
+            state_layout.addWidget(self.traffic_sign)
 
-        # Queue graph
-        self.queue_graph = pg.PlotWidget(title="Queue")
-        self.queue_graph.plotItem.setLabels(bottom='Bound', left="Queue Length")
-        self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-        self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-        self.queue_graph.setBackground('w')
+            # Queue graph
+            self.queue_graph = pg.PlotWidget(title="Queue")
+            self.queue_graph.plotItem.setLabels(bottom='Bound', left="Queue Length")
+            self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+            self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+            self.queue_graph.setBackground('w')
 
-        state_layout.addWidget(self.queue_graph)
+            state_layout.addWidget(self.queue_graph)
 
-        # Emissions graph
-        self.emission_graph = pg.PlotWidget(title="Total Emissions")
-        self.emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
-        self.emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-        self.emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-        self.emission_graph.setBackground('w')
-        self.emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-        self.emission_curve = self.emission_graph.plot(pen="g")
-        emission_layout.addWidget(self.emission_graph)
+            # Emissions graph
+            self.emission_graph = pg.PlotWidget(title="Total Emissions")
+            self.emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
+            self.emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+            self.emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+            self.emission_graph.setBackground('w')
+            self.emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
+            self.emission_curve = self.emission_graph.plot(pen="g")
+            emission_layout.addWidget(self.emission_graph)
 
-        # Emission graph by bound
-        self.bound_emission_graph = pg.PlotWidget(title="Emissions by Bound")
-        self.bound_emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
-        self.bound_emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-        self.bound_emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-        self.bound_emission_graph.setBackground('w')
-        self.bound_emission_graph.addLegend()
-        self.bound_emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-        self.Sb_emission_curve = self.bound_emission_graph.plot(pen="r")
-        self.Nb_emission_curve = self.bound_emission_graph.plot(pen="b")
-        self.Eb_emission_curve = self.bound_emission_graph.plot(pen="g")
-        self.Wb_emission_curve = self.bound_emission_graph.plot(pen="c")
-        emission_layout.addWidget(self.bound_emission_graph)
+            # Emission graph by bound
+            self.bound_emission_graph = pg.PlotWidget(title="Emissions by Bound")
+            self.bound_emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
+            self.bound_emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+            self.bound_emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+            self.bound_emission_graph.setBackground('w')
+            self.bound_emission_graph.addLegend()
+            self.bound_emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
+            self.Sb_emission_curve = self.bound_emission_graph.plot(pen="r")
+            self.Nb_emission_curve = self.bound_emission_graph.plot(pen="b")
+            self.Eb_emission_curve = self.bound_emission_graph.plot(pen="g")
+            self.Wb_emission_curve = self.bound_emission_graph.plot(pen="c")
+            emission_layout.addWidget(self.bound_emission_graph)
 
         start_button = QPushButton("Start Simulation")
         font = start_button.font()
@@ -107,10 +109,11 @@ class TrafficSimulatorApp(QMainWindow):
         if self.controller is None:
             self.initialize_controller()  # Initialize the controller if it hasn't been initialized
         self.simulation_thread = SimulationThread(self.controller)
-        self.simulation_thread.results_signal.connect(self.draw_bar_chart)
-        self.simulation_thread.results_signal.connect(self.update_co2_graph)
+        if self.DEBUG is not True:
+            self.simulation_thread.results_signal.connect(self.draw_bar_chart)
+            self.simulation_thread.results_signal.connect(self.update_co2_graph)
         self.simulation_thread.start()
-        self.timer.start(1000)  # Start the timer to update the GUI every second
+        self.timer.start(100)  # Start the timer to update the GUI every second
 
     def stop_simulation(self):
         if self.controller:
@@ -125,19 +128,22 @@ class TrafficSimulatorApp(QMainWindow):
     def draw_bar_chart(self, section_results):
         self.bar_x = []
         self.bar_y = []
+        #print('length of sections : ', len(section_results), type(section_results))
+        section_results = section_results[-4:]
         for result in section_results:
+            #print('Sid : ', result['Section'], ', Queue : ', result['Section_Queue'])
             if result['Section'] == '0':
                 self.bar_x.append(1)
-                self.bar_y.append(result['Section_Volume'])
+                self.bar_y.append(result['Section_Queue'])
             elif result['Section'] == '1':
                 self.bar_x.append(2)
-                self.bar_y.append(result['Section_Volume'])
+                self.bar_y.append(result['Section_Queue'])
             elif result['Section'] == '2':
                 self.bar_x.append(3)
-                self.bar_y.append(result['Section_Volume'])
+                self.bar_y.append(result['Section_Queue'])
             elif result['Section'] == '3':
                 self.bar_x.append(4)
-                self.bar_y.append(result['Section_Volume'])
+                self.bar_y.append(result['Section_Queue'])
         self.queue_graph.clear()
         bg = pg.BarGraphItem(x=self.bar_x, height=self.bar_y, width=0.6, brush='y', pen='y')
         self.queue_graph.addItem(bg)
