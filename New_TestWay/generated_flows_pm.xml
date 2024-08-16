@@ -21,13 +21,13 @@
   <route id="Nb_s" edges="E138 E133 E134 E130 E131 E129 E125 E114 E118 E121 E115 E112 E30 E32 E33 E34"/>
   
     
-  <route id="Sb_l" edges="E5 E4 E3 E2 E0 E73 E75 E76 E79 E94 E95 E81 E82 E83 E92 E93 E85 E87 E88"/>
+  <route id="Sb_l" edges="E5 E13 E28 E29 E42 E4 E3 E2 E0 E73 E75 E76 E79 E94 E95 E81 E82 E83 E92 E93 E85 E87 E88"/>
   
     
-  <route id="Sb_r" edges="E5 E4 E3 E2 E1 E10 E11 E12 E14 E15 E16 E17 E18"/>
+  <route id="Sb_r" edges="E5 E13 E28 E29 E42 E4 E3 E2 E1 E10 E11 E12 E14 E15 E16 E17 E18"/>
   
     
-  <route id="Sb_s" edges="E5 E4 E3 E2 E0 E96 E97 E109 E98 E99 E107 E101 E102"/>
+  <route id="Sb_s" edges="E5 E13 E28 E29 E42 E4 E3 E2 E0 E96 E97 E109 E98 E99 E107 E101 E102"/>
   
     
   <route id="Wb_l" edges="E44 E43 E41 E40 E39 E74 E77 E38 E37 E96 E97 E109 E98 E99 E107 E101 E102"/>

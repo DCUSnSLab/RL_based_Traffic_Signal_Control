@@ -10,6 +10,8 @@ from traci import TraCIException
 import time
 from collections import deque
 
+from Actuated_TLC import traffic_signal_control
+
 class Config_SUMO:
     # SUMO Configuration File
     sumocfg_path = "New_TestWay/test_cfg.sumocfg"
@@ -145,18 +147,8 @@ class Section:
         if traffic_light_bound == self.id:
             DilemmaZone_results = []
             for vehicle in self.section_vehicles:
-                vehicle_distance_list = []
                 vehicle_position = traci.vehicle.getPosition(vehicle)
                 vehicle_x, vehicle_y = vehicle_position
-                # vehicle_distance = math.sqrt((self.stop_x - vehicle_x) ** 2 + (self.stop_y - vehicle_y) ** 2)
-                # for i in range(0, len(self.stop_lane),2):
-                #     stop_lane_x, stop_lane_y = self.stop_lane[i:i+2]
-                #     distance = math.sqrt((stop_lane_x - vehicle_x) ** 2 + (stop_lane_y - vehicle_y) ** 2)
-                #     vehicle_distance_list.append(distance)
-                # vehicle_distance = min(vehicle_distance_list)
-                # vehicle_speed = traci.vehicle.getSpeed(vehicle)
-                # vehicle_type = traci.vehicle.getTypeID(vehicle)
-                # check_value = self.DilemmaZoneControlSignal(time, vehicle_speed, vehicle_distance, vehicle_type, MinGreenTime, MaxGreenTime)
                 for i in range(0, len(self.stop_lane),2):
                     stop_lane_x, stop_lane_y = self.stop_lane[i:i+2]
                     distance = math.sqrt((stop_lane_x - vehicle_x) ** 2 + (stop_lane_y - vehicle_y) ** 2)
@@ -178,14 +170,12 @@ class Section:
             return check_value
 
     def StopLane_position(self):
-        # print(type(self.id))
         stop_lane = ()
         last_station = self.stations[-1]
         for stop_detector in last_station.dets:
             lane_id = traci.inductionloop.getLaneID(stop_detector.id)
             lane_shape = traci.lane.getShape(lane_id)
             stop_lane_position = lane_shape[-1]
-            # stop_x, stop_y = stop_lane_position
             stop_lane += stop_lane_position
         return stop_lane
 
@@ -194,7 +184,7 @@ class Section:
         s = s*3.6
         if time >= MinGreenTime:
             # if time < MaxGreenTime:
-            if MaxGreenTime <= 10:
+            if MaxGreenTime <= 5:
                 if car_type == "passenger":
                     T1 = s / 14
                     D1 = s * T1
@@ -241,25 +231,15 @@ class Section:
 
             self.traffic_queue -= station.getExitVolume()
             self.section_vehicles.difference_update(station.getExitVehIds())
-            # if self.id == '2':
-            #     if station.getExitVolume() > 0:
-            #         print('----exit vol : ',station.getExitVolume())
 
         for vehicle in self.section_vehicles:
             try:
                 if traci.vehicle.getCO2Emission(vehicle) >= 0:
                     self.section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
             except TraCIException:
-                print('------------------------disappear -> ',vehicle)
-                #self.section_vehicles.remove(vehicle)
                 removal_veh.append(vehicle)
 
         self.section_vehicles.difference_update(removal_veh)
-
-        # if self.id == '2':
-        #     print('Sid : ',self.id, ', Queue : ')
-        #     print('---- VehIds : ', self.section_vehicles)
-        #self.collect_data()
 
 class SumoController:
     def __init__(self, config):
@@ -280,6 +260,8 @@ class SumoController:
         self.original_phase_durations={}
         self.stepbySec = 1
         self.colDuration = 30 #seconds
+        self.cycle_time = 200
+        self.total_yellow_time = 20
 
     def __get_detector_ids(self, config):
         detector_ids = []
@@ -326,9 +308,6 @@ class SumoController:
         MinGreenTime = 0
         extended_time = 0
         step = 0
-        # current_phase_index = traci.trafficlight.getPhase("TLS_0")
-        # logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
-        # current_phase = logic.phases[current_phase_index]
 
         while step <= 11700:
             #start_time = time.time()
@@ -346,6 +325,15 @@ class SumoController:
             elapsed_time = current_simulation_time - (next_switch_time - current_phase_duration)
 
             remaining_time = next_switch_time - current_simulation_time
+
+            if current_phase_index == num_phases-1 and remaining_time == 0:
+                print(step)
+                traffic_signal_control(self.section_objects, self.cycle_time, self.total_yellow_time)
+                # green_times, surplus_rates, waiting_times = traffic_signal_control(self.section_objects, self.cycle_time, self.total_yellow_time)
+                # print(f"Simulation step {step}: Green times: {green_times}, Surplus rates: {surplus_rates}, Waiting times: {waiting_times}")
+
+            # print("step:", step, logic)
+            # print("remaining time:", remaining_time)
 
             tls = self.Check_TrafficLight_State()
             # print(tls)
@@ -370,28 +358,27 @@ class SumoController:
 
             for section_id, section in self.section_objects.items():
                 section.update()
-                if bound == "yellow":
-                    pass
-                else:
-                    # MaxGreenTime = MinGreenTime + 10
-                    # current_simulation_time = traci.simulation.getTime()
-                    # current_phase_duration = traci.trafficlight.getPhaseDuration("TLS_0")
-                    # next_switch_time = traci.trafficlight.getNextSwitch("TLS_0")
-                    # elapsed_time = current_simulation_time - (next_switch_time - current_phase_duration)
-                    # check_control = section.check_DilemmaZone(elapsed_time, bound, MinGreenTime, MaxGreenTime)
-                    check_control = section.check_DilemmaZone(elapsed_time, bound, MinGreenTime, extended_time)
-                    if check_control == "pass":
-                        print("*" * 50)
-                        print("sectino id :", section_id)
-                        print("increase 1s")
-                        print("extended count", extended_time)
-                        new_duration = remaining_time+1
-                        traci.trafficlight.setPhaseDuration("TLS_0", new_duration)
-                        print("*" * 50)
-                        extended_time += 1
-                    elif check_control == "yellow":
-                        traci.trafficlight.setPhase("TLS_0", next_phase_index)
-                count = 0
+                # if bound == "yellow":
+                #     pass
+                # else:
+                #     check_control = section.check_DilemmaZone(elapsed_time, bound, MinGreenTime, extended_time)
+                #     if check_control == "pass":
+                #         print("*" * 50)
+                #         print("section id :", section_id)
+                #         print("increase 1s")
+                #         print("extended count", extended_time)
+                #         new_duration = remaining_time+1
+                #         traci.trafficlight.setPhaseDuration("TLS_0", new_duration)
+                #         print("*" * 50)
+                #         extended_time += 1
+                #     elif check_control == "yellow":
+                #         traci.trafficlight.setPhase("TLS_0", next_phase_index)
+
+            # if current_phase_index == 0 and remaining_time == 0:
+            #     for section_id, section in self.section_objects.items():
+            #         print("Section ID:", section_id)
+            #         print("Traffic Queue:", section.traffic_queue)
+            #     print("*"*50)
 
             self.make_data()
             self.make_total(step)
@@ -435,7 +422,7 @@ class SumoController:
         append_result = self.total_results.append
         for vehicle_id in vehicle_ids:
             self.total_co2_emission += traci.vehicle.getCO2Emission(vehicle_id)
-        print(self.total_volume)
+        # print(self.total_volume)
         append_result({
             'Time': time,
             'Total_Emission': self.total_co2_emission,
