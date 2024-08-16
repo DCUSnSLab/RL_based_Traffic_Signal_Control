@@ -126,7 +126,7 @@ class Station:
     def __init__(self, id, detectors=None):
         self.id = id
         self.dets = [] if detectors is None else detectors
-        self.direction = None if len(self.dets) == 0 else self.dets[0].bound
+        self.direction = None
 
         self.volumes = deque()
         self.speeds = deque()
@@ -135,8 +135,15 @@ class Station:
         self.append_exitVolume = self.exitVolumes.append
         self.append_speeds = self.speeds.append
 
+        self.__define_direction()
+
+    def __define_direction(self):
+        if not hasattr(self, 'direction') or self.direction is None:
+            self.direction = None if len(self.dets) == 0 else self.dets[0].bound
+
     def addDetector(self, detector):
         self.dets.append(detector)
+        self.__define_direction()
 
     def update(self):
         pass
@@ -150,16 +157,15 @@ class Station:
     def getExitVolume(self):
         return self.exitVolumes[-1]
 
-    # 직렬화할 데이터를 정의하는 메서드
     def __getstate__(self):
         state = self.__dict__.copy()
         del state['direction']
         return state
 
-    # 역직렬화된 데이터를 객체 상태에 복원하는 메서드
     def __setstate__(self, state):
         self.__dict__.update(state)
-        self.direction = None if len(self.dets) == 0 else self.dets[0].bound
+        self.__define_direction()
+        #self.direction = None if len(self.dets) == 0 else self.dets[0].bound
 
 class SStation(Station):
     def __init__(self, id, detectors=None):
@@ -213,8 +219,8 @@ class SStation(Station):
 class Section:
     def __init__(self, id, stations):
         self.id = id
-        self.stations = stations
-        self.direction = None if len(self.stations) == 0 else self.stations[0].direction
+        self.stations = [] if stations is None else stations
+        self.direction = None
 
         #append data
         self.section_co2 = deque()
@@ -224,105 +230,39 @@ class Section:
         self.append_section_volumes = self.section_volumes.append
         self.append_section_queues = self.section_queues.append
 
+        self.__define_direction()
+
+    def __define_direction(self):
+        if not hasattr(self, 'direction') or self.direction is None:
+            self.direction = None if len(self.stations) == 0 else self.stations[0].direction
+
+    def addStation(self, station):
+        self.stations.append(station)
+        self.__define_direction()
+
     def collect_data(self):
         return self.section_co2[-1], self.section_volumes[-1], self.section_queues[-1]
 
     def update(self):
         pass
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['direction']  # direction은 계산 가능한 필드이므로 직렬화에서 제외
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # direction은 stations의 첫 번째 항목으로부터 다시 계산하여 설정
+        self.__define_direction()
+
 class SSection(Section):
-    def __init__(self, id, stations):
+    def __init__(self, id, stations=None):
         super().__init__(id, stations)
 
         #for data
         self.traffic_queue = 0
         self.section_vehicles = set()
-
-        #for dilemmaZone
-        self.stop_lane = self.StopLane_position()
-        self.in_dilemmaZone = set()
-
-    def check_DilemmaZone(self, time, traffic_light_bound, MinGreenTime, MaxGreenTime):
-        if traffic_light_bound == self.id:
-            DilemmaZone_results = []
-            for vehicle in self.section_vehicles:
-                vehicle_distance_list = []
-                vehicle_position = traci.vehicle.getPosition(vehicle)
-                vehicle_x, vehicle_y = vehicle_position
-                # vehicle_distance = math.sqrt((self.stop_x - vehicle_x) ** 2 + (self.stop_y - vehicle_y) ** 2)
-                # for i in range(0, len(self.stop_lane),2):
-                #     stop_lane_x, stop_lane_y = self.stop_lane[i:i+2]
-                #     distance = math.sqrt((stop_lane_x - vehicle_x) ** 2 + (stop_lane_y - vehicle_y) ** 2)
-                #     vehicle_distance_list.append(distance)
-                # vehicle_distance = min(vehicle_distance_list)
-                # vehicle_speed = traci.vehicle.getSpeed(vehicle)
-                # vehicle_type = traci.vehicle.getTypeID(vehicle)
-                # check_value = self.DilemmaZoneControlSignal(time, vehicle_speed, vehicle_distance, vehicle_type, MinGreenTime, MaxGreenTime)
-                for i in range(0, len(self.stop_lane),2):
-                    stop_lane_x, stop_lane_y = self.stop_lane[i:i+2]
-                    distance = math.sqrt((stop_lane_x - vehicle_x) ** 2 + (stop_lane_y - vehicle_y) ** 2)
-                    if distance <= 120:
-                        vehicle_speed = traci.vehicle.getSpeed(vehicle)
-                        vehicle_type = traci.vehicle.getTypeID(vehicle)
-                        check_value = self.DilemmaZoneControlSignal(time, vehicle_speed, distance, vehicle_type, MinGreenTime, MaxGreenTime)
-                        DilemmaZone_results.append(check_value)
-                    else:
-                        pass
-            if "pass" in DilemmaZone_results:
-                return "pass"
-            elif "pass" not in DilemmaZone_results and "yellow" in DilemmaZone_results:
-                return "yellow"
-            else:
-                return "none"
-        else:
-            check_value = "none"
-            return check_value
-
-    def StopLane_position(self):
-        # print(type(self.id))
-        stop_lane = ()
-        last_station = self.stations[-1]
-        for stop_detector in last_station.dets:
-            lane_id = traci.inductionloop.getLaneID(stop_detector.id)
-            lane_shape = traci.lane.getShape(lane_id)
-            stop_lane_position = lane_shape[-1]
-            # stop_x, stop_y = stop_lane_position
-            stop_lane += stop_lane_position
-        return stop_lane
-
-    def DilemmaZoneControlSignal(self, time, s, d, car_type, MinGreenTime, MaxGreenTime):
-        check = "none"
-        s = s*3.6
-        if time >= MinGreenTime:
-            # if time < MaxGreenTime:
-            if MaxGreenTime <= 10:
-                if car_type == "passenger":
-                    T1 = s / 14
-                    D1 = s * T1
-                    if D1 < d:
-                        check="yellow"
-                        return check
-                    else:
-                        # signal extension
-                        print(s, d, car_type, D1)
-                        check = "pass"
-                        return check
-                else:
-                    T2 = s / 9
-                    D2 = s * T2
-                    if D2 < d:
-                        check = "yellow"
-                        return check
-                    else:
-                        # signal extension
-                        print(s, d, car_type, D2)
-                        check = "pass"
-                        return check
-            else:
-                check="yellow"
-                return check
-        else:
-            return check
 
     def update(self):
         section_co2_emission = 0
@@ -365,3 +305,23 @@ class SSection(Section):
         #     print('Sid : ',self.id, ', Queue : ')
         #     print('---- VehIds : ', self.section_vehicles)
         #self.collect_data()
+
+class Infra:
+    def __init__(self, sumocfg_path, scenario_path, scenario_file, sections):
+        self.sumocfg_path = sumocfg_path
+        # SUMO Scenario File Path
+        self.scenario_path = scenario_path
+        # SUMO Scenario File(.add.xml)
+        self.scenario_file = scenario_file
+        self.sections = sections
+
+    def getSections(self):
+        return self.sections
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        return state
+
+    # 역직렬화된 데이터를 객체 상태에 복원하는 메서드
+    def __setstate__(self, state):
+        self.__dict__.update(state)
