@@ -28,7 +28,7 @@ class SumoController:
         self.traffic_light_id = "TLS_0"
         self.total_co2_emission = 0
         self.total_volume = 0
-        self.__get_station()
+        self.__init_station()
         self.station_objects = {station_id: SStation(station_id, detectors) for station_id, detectors in self.stations.items()}
         self.__get_section()
         self.section_objects = {section_id: SSection(section_id, stations) for section_id, stations in self.sections.items()}
@@ -49,7 +49,7 @@ class SumoController:
         traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start"])
         traci.simulationStep()
 
-    def __get_station(self):
+    def __init_station(self):
         for detector in self.detectors:
             if detector.station_id not in self.stations:
                 self.stations[detector.station_id] = []

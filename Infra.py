@@ -38,6 +38,11 @@ class Detector:
         self.append_volumes = self.volumes.append
         self.append_speeds = self.speeds.append
 
+    def __str__(self):
+        return f"Detector {self.id} at station {self.station_id} volumes {len(self.volumes)} and speeds {len(self.speeds)}"
+
+    def __repr__(self):
+        return f""
     def parse_detector_id(self, id):
         parts = id.split('_')
         if len(parts) != 2 or not parts[0].startswith("Det"):
@@ -61,6 +66,26 @@ class Detector:
 
     def getSpeed(self):
         return self.speeds[-1]
+
+        # 직렬화할 데이터를 정의하는 메서드
+    def __getstate__(self):
+        # 기본 상태를 가져온 후, flow, density와 parse_detector_id()에서 생성된 필드를 제거
+        state = self.__dict__.copy()
+        del state['flow']
+        del state['density']
+        del state['aux']
+        del state['bound']
+        del state['station_id']
+        del state['detector_id']
+        return state
+
+    # 역직렬화된 데이터를 객체 상태에 복원하는 메서드
+    def __setstate__(self, state):
+        # 상태를 설정하고, flow와 density, 그리고 parse_detector_id()의 필드를 다시 설정
+        self.__dict__.update(state)
+        self.flow = 0
+        self.density = 0
+        self.aux, self.bound, self.station_id, self.detector_id = self.parse_detector_id(self.id)
 
 class SDetector(Detector):
     def __int__(self, id):
@@ -98,9 +123,9 @@ class SDetector(Detector):
         self.append_speeds(speed)
 
 class Station:
-    def __init__(self, id, detectors):
+    def __init__(self, id, detectors=None):
         self.id = id
-        self.dets = detectors
+        self.dets = [] if detectors is None else detectors
         self.direction = None if len(self.dets) == 0 else self.dets[0].bound
 
         self.volumes = deque()
@@ -109,6 +134,9 @@ class Station:
         self.append_volumes = self.volumes.append
         self.append_exitVolume = self.exitVolumes.append
         self.append_speeds = self.speeds.append
+
+    def addDetector(self, detector):
+        self.dets.append(detector)
 
     def update(self):
         pass
@@ -122,8 +150,19 @@ class Station:
     def getExitVolume(self):
         return self.exitVolumes[-1]
 
+    # 직렬화할 데이터를 정의하는 메서드
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['direction']
+        return state
+
+    # 역직렬화된 데이터를 객체 상태에 복원하는 메서드
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.direction = None if len(self.dets) == 0 else self.dets[0].bound
+
 class SStation(Station):
-    def __init__(self, id, detectors):
+    def __init__(self, id, detectors=None):
         super().__init__(id, detectors)
         self.inputVeh = set()
         self.exitVeh = set()
@@ -168,6 +207,8 @@ class SStation(Station):
 
     def getExitVehIds(self):
         return self.exitVeh
+
+
 
 class Section:
     def __init__(self, id, stations):
