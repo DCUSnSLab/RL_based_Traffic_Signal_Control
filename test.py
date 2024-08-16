@@ -1,6 +1,6 @@
 import pickle
 
-from Infra import Detector, SDetector, SStation, SSection, Infra
+from Infra import Detector, SDetector, SStation, SSection, Infra, DSection
 from RunSimulation import Config_SUMO
 
 detector = SDetector("Det_03001700")
@@ -28,6 +28,9 @@ for station_id in station_objects:
     if section_id not in section_objects:
         section_objects[section_id] = SSection(section_id)
     section_objects[section_id].addStation(station_objects[station_id])
+
+section = section_objects['3']
+print(type(section))
 infra = Infra(Config_SUMO.sumocfg_path, Config_SUMO.scenario_path, Config_SUMO.scenario_file, list(section_objects.values()))
 
 with open("infra.pkl", "wb") as f:
@@ -38,4 +41,3 @@ with open("infra.pkl", "rb") as f:
     loaded_infra = pickle.load(f)
 
 print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
-print(loaded_infra)

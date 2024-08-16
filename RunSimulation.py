@@ -1,11 +1,12 @@
 import math
 import os
+import pickle
 from enum import Enum
 
 import traci
 import pandas as pd
 from collections import deque
-from Infra import SDetector, SStation, SSection
+from Infra import SDetector, SStation, SSection, DDetector, Infra
 from Actuated_TLC import traffic_signal_control
 
 class Config_SUMO:
@@ -34,12 +35,31 @@ class SumoController:
         self.total_yellow_time = 20
 
         #init Infra
-        self.detectors = [SDetector(detector_id) for detector_id in self.__get_detector_ids(self.config)]
-        self.station_objects = {}
-        self.section_objects = {}
-        self.__init_station()
-        self.__init_section()
+        self.rtInfra = self.__make_Infra(isNew=True)
+        self.dataInfra = self.__make_Infra(isNew=False)
 
+    def __make_Infra(self, isNew=True):
+        infra = None
+        DetectorClass = None
+        StationClass = None
+        SectionClass = None
+
+        if isNew is True:
+            DetectorClass = SDetector
+            StationClass = SStation
+            SectionClass = SSection
+
+            dets = self.__init_detector(DetectorClass)
+            station_objects = self.__init_station(dets, StationClass)
+            section_objects = self.__init_section(station_objects, SectionClass)
+            return Infra(Config_SUMO.sumocfg_path, Config_SUMO.scenario_path, Config_SUMO.scenario_file, section_objects)
+        else:
+            # 역직렬화
+            with open("infra.pkl", "rb") as f:
+                loaded_infra = pickle.load(f)
+
+            print("직렬화된 Infra 객체:", type(loaded_infra), loaded_infra)
+            print(loaded_infra.getSections())
 
     def __get_detector_ids(self, config):
         detector_ids = []
@@ -50,22 +70,29 @@ class SumoController:
                     detector_ids.append(parts[1])
         return detector_ids
 
+    def __init_detector(self, detectorclass=SDetector):
+        return [detectorclass(detector_id) for detector_id in self.__get_detector_ids(self.config)]
+
+    def __init_station(self, dets, stationclass=SStation):
+        station_objects = {}
+        for detector in dets:
+            if detector.station_id not in station_objects:
+                station_objects[detector.station_id] = stationclass(detector.station_id)
+            station_objects[detector.station_id].addDetector(detector)
+        return station_objects
+
+    def __init_section(self, stations, sectionclass=SSection):
+        section_objects = {}
+        for station_id in stations:
+            section_id = station_id[1]
+            if section_id not in section_objects:
+                section_objects[section_id] = sectionclass(section_id)
+            section_objects[section_id].addStation(stations[station_id])
+        return section_objects
+
     def __set_SUMO(self):
         traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start"])
         traci.simulationStep()
-
-    def __init_station(self):
-        for detector in self.detectors:
-            if detector.station_id not in self.station_objects:
-                self.station_objects[detector.station_id] = SStation(detector.station_id)
-            self.station_objects[detector.station_id].addDetector(detector)
-
-    def __init_section(self):
-        for station_id in self.station_objects:
-            section_id = station_id[1]
-            if section_id not in self.section_objects:
-                self.section_objects[section_id] = SSection(section_id)
-            self.section_objects[section_id].addStation(self.station_objects[station_id])
 
 
     def extract_excel(self):
@@ -106,7 +133,7 @@ class SumoController:
 
             if current_phase_index == num_phases-1 and remaining_time == 0:
                 print(step)
-                traffic_signal_control(self.section_objects, self.cycle_time, self.total_yellow_time)
+                traffic_signal_control(self.rtInfra.getSections(), self.cycle_time, self.total_yellow_time)
                 # green_times, surplus_rates, waiting_times = traffic_signal_control(self.section_objects, self.cycle_time, self.total_yellow_time)
                 # print(f"Simulation step {step}: Green times: {green_times}, Surplus rates: {surplus_rates}, Waiting times: {waiting_times}")
 
@@ -134,7 +161,7 @@ class SumoController:
 
             MaxGreenTime = MinGreenTime + 10
 
-            for section_id, section in self.section_objects.items():
+            for section_id, section in self.rtInfra.getSections().items():
                 section.update()
                 # if bound == "yellow":
                 #     pass
@@ -177,7 +204,7 @@ class SumoController:
         time = traci.simulation.getTime()
         append_result = self.section_results.append
 
-        for section_id, section in self.section_objects.items():
+        for section_id, section in self.rtInfra.getSections().items():
             section_co2_emission, section_volume, traffic_queue = section.collect_data()
 
             #make total volume

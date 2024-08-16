@@ -77,6 +77,7 @@ class Detector:
         del state['bound']
         del state['station_id']
         del state['detector_id']
+        state['__class__'] = Detector
         return state
 
     # 역직렬화된 데이터를 객체 상태에 복원하는 메서드
@@ -86,6 +87,7 @@ class Detector:
         self.flow = 0
         self.density = 0
         self.aux, self.bound, self.station_id, self.detector_id = self.parse_detector_id(self.id)
+        self.__class__ = DDetector #state.pop('__class__', Detector)
 
 class SDetector(Detector):
     def __int__(self, id):
@@ -121,6 +123,13 @@ class SDetector(Detector):
         self.prevVehicles = vehicle_ids
         self.append_volumes(volume)
         self.append_speeds(speed)
+
+class DDetector(Detector):
+    def __int__(self, id):
+        super().__init__(id)
+
+    def update(self):
+        print('test')
 
 class Station:
     def __init__(self, id, detectors=None):
@@ -160,11 +169,13 @@ class Station:
     def __getstate__(self):
         state = self.__dict__.copy()
         del state['direction']
+        state['__class__'] = Station
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         self.__define_direction()
+        self.__class__ = DStation #state.pop('__class__', Station)
         #self.direction = None if len(self.dets) == 0 else self.dets[0].bound
 
 class SStation(Station):
@@ -214,7 +225,12 @@ class SStation(Station):
     def getExitVehIds(self):
         return self.exitVeh
 
+class DStation(Station):
+    def __init__(self, id, detectors=None):
+        super().__init__(id, detectors)
 
+    def update(self):
+        pass
 
 class Section:
     def __init__(self, id, stations):
@@ -246,15 +262,20 @@ class Section:
     def update(self):
         pass
 
+    def print(self):
+        print('this is Section!!')
+
     def __getstate__(self):
         state = self.__dict__.copy()
         del state['direction']  # direction은 계산 가능한 필드이므로 직렬화에서 제외
+        state['__class__'] = Section
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         # direction은 stations의 첫 번째 항목으로부터 다시 계산하여 설정
         self.__define_direction()
+        self.__class__ = DSection#state.pop('__class__', Section)
 
 class SSection(Section):
     def __init__(self, id, stations=None):
@@ -305,6 +326,18 @@ class SSection(Section):
         #     print('Sid : ',self.id, ', Queue : ')
         #     print('---- VehIds : ', self.section_vehicles)
         #self.collect_data()
+    def print(self):
+        print('this is SSection!!')
+
+class DSection(Section):
+    def __init__(self, id, stations=None):
+        super().__init__(id, stations)
+
+    def update(self):
+        pass
+
+    def print(self):
+        print('this is DSection!!')
 
 class Infra:
     def __init__(self, sumocfg_path, scenario_path, scenario_file, sections):
@@ -313,10 +346,10 @@ class Infra:
         self.scenario_path = scenario_path
         # SUMO Scenario File(.add.xml)
         self.scenario_file = scenario_file
-        self.sections = sections
+        self.__sections = sections
 
     def getSections(self):
-        return self.sections
+        return self.__sections
 
     def __getstate__(self):
         state = self.__dict__.copy()
