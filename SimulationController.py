@@ -204,7 +204,7 @@ class TrafficSimulatorApp(QMainWindow):
     def update_co2_graph(self, section_results, total_results):
         self.draw_filtered_graph(section_results, total_results)
 
-    def low_pass_filter(self, data, cutoff=0.3, fs=1.0, order=1):
+    def low_pass_filter(self, data, cutoff=0.2, fs=1.0, order=1):
         if len(data) <= 9:  # 필터의 padlen보다 작은 경우
             return data  # 필터링을 건너뛰고 원래 데이터를 반환
         nyq = 0.5 * fs  # Nyquist Frequency
