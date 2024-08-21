@@ -35,7 +35,7 @@ class RunSimulation:
 
         #init Infra
         self.rtInfra = self.__make_Infra(isNew=True)
-        self.dataInfra = self.__make_Infra(isNew=False)
+        #self.dataInfra = self.__make_Infra(isNew=False)
 
     def __make_Infra(self, isNew=True):
         infra = None
