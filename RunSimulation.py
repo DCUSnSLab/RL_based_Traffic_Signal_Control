@@ -24,6 +24,7 @@ class RunSimulation:
         self.__set_SUMO()
         self.section_results = deque()
         self.total_results = deque()
+        self.total_results_comp = deque()
 
         self.total_co2_emission = 0
         self.total_volume = 0
@@ -35,9 +36,9 @@ class RunSimulation:
 
         #init Infra
         self.rtInfra = self.__make_Infra(isNew=True)
-        self.dataInfra = self.__make_Infra(isNew=False)
+        self.compareInfra: Infra = None
 
-    def __make_Infra(self, isNew=True):
+    def __make_Infra(self, isNew=True, fileName=None):
         infra = None
         DetectorClass = None
         StationClass = None
@@ -51,14 +52,13 @@ class RunSimulation:
             dets = self.__init_detector(DetectorClass)
             station_objects = self.__init_station(dets, StationClass)
             section_objects = self.__init_section(station_objects, SectionClass)
-            return Infra(Config_SUMO.sumocfg_path, Config_SUMO.scenario_path, Config_SUMO.scenario_file, section_objects)
+            return Infra(Config_SUMO.sumocfg_path, Config_SUMO.scenario_path, Config_SUMO.scenario_file, section_objects, self.sigTypeName)
         else:
             # 역직렬화
-            with open("infra.pkl", "rb") as f:
-                loaded_infra = pickle.load(f)
+            with open(fileName, "rb") as f:
+                self.compareInfra = pickle.load(f)
 
-            print("직렬화된 Infra 객체:", type(loaded_infra), loaded_infra)
-            print(loaded_infra.getSections())
+            print("Loaded Infra:", type(self.compareInfra), self.compareInfra)
 
     def __get_detector_ids(self, config):
         detector_ids = []
@@ -102,6 +102,21 @@ class RunSimulation:
     def isTermiated(self):
         return self.isStop
 
+    def saveData(self):
+        if self.isStop is True:
+            print('save data clicked')
+            with open(self.rtInfra.setSaveFileName(), "wb") as f:
+                pickle.dump(self.rtInfra, f)
+                print('---file saved at ',self.rtInfra.getFileName())
+            #self.extract_excel()
+
+    def loadData(self, fileName):
+        if fileName is not None:
+            print('load Infra File - ', fileName)
+            self.__make_Infra(isNew=False, fileName=fileName)
+            self.__make_total_comp()
+
+
     def extract_excel(self):
         df = pd.DataFrame(self.section_results)
 
@@ -141,6 +156,7 @@ class RunSimulation:
 
             step += 1
 
+        self.isStop = True
         traci.close()
 
 
@@ -184,3 +200,13 @@ class RunSimulation:
             'Total_Emission': self.total_co2_emission,
             'Total_Volume': self.total_volume
         })
+
+        self.rtInfra.addTotalResult({
+            'Time': time,
+            'Total_Emission': self.total_co2_emission,
+            'Total_Volume': self.total_volume
+        })
+
+    def __make_total_comp(self):
+        if self.compareInfra is not None:
+            self.total_results_comp = self.compareInfra.getTotalResult()

@@ -37,7 +37,7 @@ infra = Infra(Config_SUMO.sumocfg_path, Config_SUMO.scenario_path, Config_SUMO.s
 #     pickle.dump(infra, f)
 
 # 역직렬화
-with open("infra.pkl", "rb") as f:
+with open("Static Control_20240821230340.data", "rb") as f:
     loaded_infra = pickle.load(f)
 
 print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)

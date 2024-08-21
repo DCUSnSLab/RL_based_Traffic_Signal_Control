@@ -1,3 +1,4 @@
+from datetime import datetime
 from collections import deque
 from enum import Enum
 import traci
@@ -340,7 +341,7 @@ class DSection(Section):
         print('this is DSection!!')
 
 class Infra:
-    def __init__(self, sumocfg_path, scenario_path, scenario_file, sections):
+    def __init__(self, sumocfg_path, scenario_path, scenario_file, sections, sigtype=None):
         self.sumocfg_path = sumocfg_path
         # SUMO Scenario File Path
         self.scenario_path = scenario_path
@@ -348,8 +349,41 @@ class Infra:
         self.scenario_file = scenario_file
         self.__sections = sections
 
+        self.__totalresult = deque()
+
+        self.sigType: str = sigtype
+        self.__savedTime: datetime = None
+        self.__savefileName: str = None
+
+    def addTotalResult(self, data):
+        self.__totalresult.append(data)
+
+    def getTotalResult(self):
+        return self.__totalresult
+
     def getSections(self):
         return self.__sections
+
+    def setSaveFileName(self, name=None):
+        if self.__savedTime is None:
+            self.setCurrentTime()
+
+        filename = self.sigType + '_'
+        if name is not None:
+            filename = filename + name
+        else:
+            formatted_time = self.__savedTime.strftime("%Y%m%d%H%M%S")
+            filename = filename+formatted_time
+
+        self.__savefileName = filename + '.data'
+        return self.__savefileName
+
+    def getFileName(self):
+        return self.__savefileName
+
+    def setCurrentTime(self):
+        self.__savedTime = datetime.now()
+        print(self.__savedTime)
 
     def __getstate__(self):
         state = self.__dict__.copy()
