@@ -1,4 +1,7 @@
+import os
 import sys
+from datetime import datetime
+
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
@@ -10,17 +13,20 @@ from PyQt5.QtGui import QFont
 from scipy.signal import butter, filtfilt
 from signaltype import SignalMode
 
+from typing import List, Tuple
+
 
 class TrafficSimulatorApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.DEBUG = False
-        self.controller = None  # Initialize the controller to None initially
+        self.controller: RunSimulation = None  # Initialize the controller to None initially
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_data)  # Connect the timer to update_data method
 
         #signalControl Mode
         self.signalControlType = None
+        self.compData: str = None
 
         self.initUI()
 
@@ -33,6 +39,8 @@ class TrafficSimulatorApp(QMainWindow):
 
         main_layout = QVBoxLayout(central_widget)
         select_layout = QVBoxLayout()
+        menu1_layout = QHBoxLayout()
+        menu2_layout = QHBoxLayout()
         top_layout = QHBoxLayout()
         state_layout = QHBoxLayout()
         emission_layout = QHBoxLayout()
@@ -67,6 +75,7 @@ class TrafficSimulatorApp(QMainWindow):
             self.emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
             self.emission_graph.setBackground('w')
             self.emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
+            self.comp_emission_curve = self.emission_graph.plot(pen="r")
             self.emission_curve = self.emission_graph.plot(pen="g")
             emission_layout.addWidget(self.emission_graph)
 
@@ -103,6 +112,16 @@ class TrafficSimulatorApp(QMainWindow):
             # 위젯을 레이아웃에 추가
             emission_layout.addWidget(self.bound_emission_graph)
 
+        #Select Signal Type
+        #label
+        lb_sigtype = QLabel(self)
+        font = lb_sigtype.font()
+        font.setPointSize(15)
+        font.setBold(True)
+        lb_sigtype.setFont(font)
+        lb_sigtype.setText("Select Signal Type: ")
+        menu1_layout.addWidget(lb_sigtype)
+        #Combobox
         cb_sigtype = QComboBox(self)
         font = cb_sigtype.font()
         font.setPointSize(15)
@@ -112,7 +131,32 @@ class TrafficSimulatorApp(QMainWindow):
         cb_sigtype.activated[str].connect(self.onSigTypeActivated)
         cb_sigtype.setCurrentIndex(0)
         self.onSigTypeActivated(cb_sigtype.currentText())
-        bottom_layout.addWidget(cb_sigtype)
+        menu1_layout.addWidget(cb_sigtype)
+
+        #Select Compare Data
+        lb_comp = QLabel(self)
+        font = lb_comp.font()
+        font.setPointSize(15)
+        font.setBold(True)
+        lb_comp.setFont(font)
+        lb_comp.setText("  Select Comparing Data: ")
+        menu1_layout.addWidget(lb_comp)
+        # Combobox
+        cb_comp = QComboBox(self)
+        font = cb_comp.font()
+        font.setPointSize(15)
+        cb_comp.setFont(font)
+
+        cb_comp.addItem("No Comparison", None)
+        for orin, fn in self.getSavedFileList():
+            cb_comp.addItem(fn, orin)
+        cb_comp.activated.connect(lambda: self.onCompDataActivatd(cb_comp.currentData()))
+        cb_comp.setCurrentIndex(0)
+        self.onCompDataActivatd(cb_comp.currentData())
+        menu1_layout.addWidget(cb_comp)
+
+        spacer = QSpacerItem(40, 30, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        menu1_layout.addItem(spacer)
 
         #s_button.clicked.connect(self.start_simulation)
         #bottom_layout.addWidget(s_button)
@@ -121,29 +165,40 @@ class TrafficSimulatorApp(QMainWindow):
         font.setPointSize(15)
         start_button.setFont(font)
         start_button.clicked.connect(self.start_simulation)
-        bottom_layout.addWidget(start_button)
+        menu2_layout.addWidget(start_button)
 
         stop_button = QPushButton("Stop Simulation")
         font = stop_button.font()
         font.setPointSize(15)
         stop_button.setFont(font)
         stop_button.clicked.connect(self.stop_simulation)
-        bottom_layout.addWidget(stop_button)
+        menu2_layout.addWidget(stop_button)
 
         # Create a Custom Button(extract)
-        extract_button = QPushButton("Extract")
+        save_button = QPushButton("SaveData")
+        font = save_button.font()
+        font.setPointSize(15)
+        save_button.setFont(font)
+        save_button.clicked.connect(self.saveData_button_clicked)
+        menu2_layout.addWidget(save_button)
+
+        # Create a Custom Button(extract)
+        extract_button = QPushButton("Extract to Excel")
         font = extract_button.font()
         font.setPointSize(15)
         extract_button.setFont(font)
         extract_button.clicked.connect(self.extract_button_clicked)
-        bottom_layout.addWidget(extract_button)
+        menu2_layout.addWidget(extract_button)
 
         # Create a Custom(show graph)
         graph_button = QPushButton("Show Graph")
         font = graph_button.font()
         font.setPointSize(15)
         graph_button.setFont(font)
-        bottom_layout.addWidget(graph_button)
+        menu2_layout.addWidget(graph_button)
+
+        select_layout.addLayout(menu1_layout)
+        select_layout.addLayout(menu2_layout)
 
         main_layout.addLayout(select_layout)
         main_layout.addLayout(top_layout)
@@ -155,9 +210,15 @@ class TrafficSimulatorApp(QMainWindow):
         self.signalControlType = SignalMode.from_string(typestr)
         print('selected Signal Control Mode : ',self.signalControlType.value[1])
 
+    def onCompDataActivatd(self, compstr):
+        self.compData = compstr
+        print('comp data selected : ',self.compData)
+
     def initialize_controller(self):
         print(self.signalControlType)
         self.controller = self.signalControlType.value[0]()#RunActuated(config=Config_SUMO())
+        if self.compData is not None:
+            self.controller.loadData(self.compData)
 
     def start_simulation(self):
         if self.controller is None:
@@ -178,6 +239,29 @@ class TrafficSimulatorApp(QMainWindow):
     def extract_button_clicked(self):
         if self.controller:
             self.controller.extract_excel()
+
+    def saveData_button_clicked(self):
+        if self.controller:
+            self.controller.saveData()
+
+    def format_filename(self, filename: str) -> str:
+        base_name, timestamp = filename.rsplit('_', 1)
+        date_time_obj = datetime.strptime(timestamp, '%Y%m%d%H%M%S')
+        formatted_time = date_time_obj.strftime('%Y.%m.%d %H:%M')
+        return f"{base_name} : {formatted_time}"
+
+    def getSavedFileList(self) -> List[Tuple[str, str]]:
+        data_files = [f for f in os.listdir('.') if f.endswith('.data')]
+
+        result = []
+        for f in data_files:
+            without_extension = os.path.splitext(f)[0]
+
+            formatted_without_extension = self.format_filename(without_extension)
+
+            result.append((f, formatted_without_extension))
+
+        return result
 
     @pyqtSlot(object)
     def draw_bar_chart(self, section_results):
@@ -226,9 +310,9 @@ class TrafficSimulatorApp(QMainWindow):
         except IndexError:
             pass
 
-    @pyqtSlot(object, object)
-    def update_co2_graph(self, section_results, total_results):
-        self.draw_filtered_graph(section_results, total_results)
+    @pyqtSlot(object, object, object)
+    def update_co2_graph(self, section_results, total_results, total_result_comp):
+        self.draw_filtered_graph(section_results, total_results, total_result_comp)
 
     def low_pass_filter(self, data, cutoff=0.2, fs=1.0, order=1):
         if len(data) <= 9:  # 필터의 padlen보다 작은 경우
@@ -239,7 +323,15 @@ class TrafficSimulatorApp(QMainWindow):
         y = filtfilt(b, a, data, padlen=3)  # padlen 값을 줄여서 설정
         return y
 
-    def draw_filtered_graph(self, section_results, total_results):
+    def draw_filtered_graph(self, section_results, total_results, total_result_comp):
+        # comp Total Emission Graph
+        cx = [result['Time'] for result in total_result_comp]
+        cy = [result['Total_Emission'] for result in total_result_comp]
+
+        # 필터 적용
+        filtered_comp_y = self.low_pass_filter(cy)
+        self.comp_emission_curve.setData(cx, filtered_comp_y)
+
         # Total Emission Graph
         self.x = [result['Time'] for result in total_results]
         self.y = [result['Total_Emission'] for result in total_results]
@@ -308,11 +400,11 @@ class TrafficSimulatorApp(QMainWindow):
         event.accept()
 
 class SimulationThread(QThread):
-    results_signal = pyqtSignal(object,object)
+    results_signal = pyqtSignal(object,object, object)
 
     def __init__(self, controller):
         super().__init__()
-        self.controller = controller
+        self.controller: RunSimulation = controller
 
     def run(self):
         self.controller.run_simulation()
@@ -320,7 +412,8 @@ class SimulationThread(QThread):
     def emit_results(self):
         self.results_signal.emit(
             self.controller.section_results,
-            self.controller.total_results
+            self.controller.total_results,
+            self.controller.total_results_comp
         )
 
 def my_exception_hook(exctype, value, traceback):
