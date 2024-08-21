@@ -1,6 +1,8 @@
 from datetime import datetime
 from collections import deque
 from enum import Enum
+from typing import Dict
+
 import traci
 import math
 from traci import TraCIException
@@ -260,6 +262,9 @@ class Section:
     def collect_data(self):
         return self.section_co2[-1], self.section_volumes[-1], self.section_queues[-1]
 
+    def getCurrentCO2(self):
+        return self.section_co2[-1]
+
     def update(self):
         pass
 
@@ -361,7 +366,7 @@ class Infra:
     def getTotalResult(self):
         return self.__totalresult
 
-    def getSections(self):
+    def getSections(self) -> dict:
         return self.__sections
 
     def setSaveFileName(self, name=None):

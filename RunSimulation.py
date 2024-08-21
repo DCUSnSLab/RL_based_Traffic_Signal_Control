@@ -1,6 +1,8 @@
 import os
 import pickle
 from enum import Enum
+from typing import Dict
+
 import traci
 import pandas as pd
 from collections import deque
@@ -80,7 +82,7 @@ class RunSimulation:
             station_objects[detector.station_id].addDetector(detector)
         return station_objects
 
-    def __init_section(self, stations, sectionclass=SSection):
+    def __init_section(self, stations, sectionclass=SSection) -> Dict[int, SSection]:
         section_objects = {}
         for station_id in stations:
             section_id = station_id[1]
@@ -192,8 +194,8 @@ class RunSimulation:
         time = traci.simulation.getTime()
         vehicle_ids = traci.vehicle.getIDList()
         append_result = self.total_results.append
-        for vehicle_id in vehicle_ids:
-            self.total_co2_emission += traci.vehicle.getCO2Emission(vehicle_id)
+        for sectionid, section in self.rtInfra.getSections().items():
+            self.total_co2_emission += section.getCurrentCO2()
         # print(self.total_volume)
         append_result({
             'Time': time,
