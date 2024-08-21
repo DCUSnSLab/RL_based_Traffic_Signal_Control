@@ -1,21 +1,28 @@
 import sys
-import traci
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
-import RunSimulation
+
+from runactuated import RunActuated
+from RunSimulation import RunSimulation, Config_SUMO
 from collections import deque
 from PyQt5.QtGui import QFont
 from scipy.signal import butter, filtfilt
+from signaltype import SignalMode
+
 
 class TrafficSimulatorApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.DEBUG = False
         self.controller = None  # Initialize the controller to None initially
-        self.initUI()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_data)  # Connect the timer to update_data method
+
+        #signalControl Mode
+        self.signalControlType = None
+
+        self.initUI()
 
     def initUI(self):
         self.setWindowTitle("Traffic Simulator Visualization")
@@ -96,6 +103,19 @@ class TrafficSimulatorApp(QMainWindow):
             # 위젯을 레이아웃에 추가
             emission_layout.addWidget(self.bound_emission_graph)
 
+        cb_sigtype = QComboBox(self)
+        font = cb_sigtype.font()
+        font.setPointSize(15)
+        cb_sigtype.setFont(font)
+        for sigmode in SignalMode:
+            cb_sigtype.addItem(sigmode.value[1])
+        cb_sigtype.activated[str].connect(self.onSigTypeActivated)
+        cb_sigtype.setCurrentIndex(0)
+        self.onSigTypeActivated(cb_sigtype.currentText())
+        bottom_layout.addWidget(cb_sigtype)
+
+        #s_button.clicked.connect(self.start_simulation)
+        #bottom_layout.addWidget(s_button)
         start_button = QPushButton("Start Simulation")
         font = start_button.font()
         font.setPointSize(15)
@@ -131,8 +151,13 @@ class TrafficSimulatorApp(QMainWindow):
         main_layout.addLayout(emission_layout)
         main_layout.addLayout(bottom_layout)
 
+    def onSigTypeActivated(self, typestr):
+        self.signalControlType = SignalMode.from_string(typestr)
+        print('selected Signal Control Mode : ',self.signalControlType.value[1])
+
     def initialize_controller(self):
-        self.controller = RunSimulation.SumoController(config=RunSimulation.Config_SUMO())
+        print(self.signalControlType)
+        self.controller = self.signalControlType.value[0]()#RunActuated(config=Config_SUMO())
 
     def start_simulation(self):
         if self.controller is None:
@@ -146,8 +171,9 @@ class TrafficSimulatorApp(QMainWindow):
 
     def stop_simulation(self):
         if self.controller:
-            traci.close()
+            self.controller.terminate()
             self.timer.stop()
+
 
     def extract_button_clicked(self):
         if self.controller:
