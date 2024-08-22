@@ -33,11 +33,11 @@ section = section_objects['3']
 print(type(section))
 infra = Infra(Config_SUMO.sumocfg_path, Config_SUMO.scenario_path, Config_SUMO.scenario_file, list(section_objects.values()))
 
-# with open("infra.pkl", "wb") as f:
-#     pickle.dump(infra, f)
+with open("infra.pkl", "wb") as f:
+    pickle.dump(infra, f)
 
 # 역직렬화
-with open("infra.pkl", "rb") as f:
-    loaded_infra = pickle.load(f)
+# with open("infra.pkl", "rb") as f:
+#     loaded_infra = pickle.load(f)
 
-print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
+# print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
