@@ -2,6 +2,7 @@ from enum import Enum
 
 from runactuated import RunActuated
 from RunSimulation import RunSimulation, Config_SUMO
+from runactuatedBocc import RunActuatedBOCC
 from runactuatedocc import RunActuatedOCC
 from rundilemazone import RunDilemaZone
 from runrlbased import RunRLBased
@@ -11,6 +12,7 @@ class SignalMode(Enum):
     Static = (lambda: RunSimulation(config=Config_SUMO(), name="Static Control"), "Static Control")
     Actuated = (lambda: RunActuated(config=Config_SUMO(), name="Actuated Control"), "Actuated Control")
     ActuatedOCC = (lambda: RunActuatedOCC(config=Config_SUMO(), name="Actuated Control OCC"), "Actuated Control OCC")
+    ActuatedBOCC = (lambda: RunActuatedBOCC(config=Config_SUMO(), name="Actuated Control OCC"), "Actuated Control Bound OCC")
     RLBased = (lambda: RunRLBased(config=Config_SUMO(), name="Reinforement Learning based Control"), "Reinforement Learning based Control")
     DilemaZone = (lambda: RunDilemaZone(config=Config_SUMO(), name="DilemaZone Control"), "DilemaZone Control")
 
