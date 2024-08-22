@@ -1,6 +1,8 @@
 import os
 import pickle
 from enum import Enum
+from typing import Dict
+
 import traci
 import pandas as pd
 from collections import deque
@@ -33,6 +35,8 @@ class RunSimulation:
 
         self.traffic_light_id = "TLS_0"
         self.isStop = True
+
+        self.logic = None
 
         #init Infra
         self.rtInfra = self.__make_Infra(isNew=True)
@@ -80,13 +84,22 @@ class RunSimulation:
             station_objects[detector.station_id].addDetector(detector)
         return station_objects
 
-    def __init_section(self, stations, sectionclass=SSection):
+    def __init_section(self, stations, sectionclass=SSection) -> Dict[int, SSection]:
         section_objects = {}
+        logic = None
+        if sectionclass is SSection:
+            logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
+
         for station_id in stations:
             section_id = station_id[1]
             if section_id not in section_objects:
                 section_objects[section_id] = sectionclass(section_id)
             section_objects[section_id].addStation(stations[station_id])
+
+        #set Default greentime
+        for sid, section in section_objects.items():
+            if logic is not None:
+                section.default_greentime = logic.phases[section.direction.value[1]].duration
         return section_objects
 
     def __set_SUMO(self):
@@ -134,6 +147,9 @@ class RunSimulation:
         # with open("infra.pkl", "wb") as f:
         #     pickle.dump(self.rtInfra, f)
 
+    def _refreshSignalPhase(self):
+        traci.trafficlight.setProgramLogic("TLS_0", self.logic)
+
     def _signalControl(self):
         pass
 
@@ -146,10 +162,19 @@ class RunSimulation:
             #start_time = time.time()
             traci.simulationStep()
 
+            #set logic every step
+            self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
+
             self._signalControl()
+
+            # print('Green times: ', end='')
 
             for section_id, section in self.rtInfra.getSections().items():
                 section.update()
+
+            #     print(section.direction.name, ": ", section.getCurrentGreenTime(), end=', ')
+            # print()
+            # print(f"Green times: {green_times}, Surplus rates: {surplus_rates}, Waiting times: {waiting_times}")
 
             self.make_data()
             self.make_total(step)
@@ -173,7 +198,7 @@ class RunSimulation:
         append_result = self.section_results.append
 
         for section_id, section in self.rtInfra.getSections().items():
-            section_co2_emission, section_volume, traffic_queue = section.collect_data()
+            section_co2_emission, section_volume, traffic_queue, green_time = section.collect_data()
 
             #make total volume
             self.total_volume += section_volume
@@ -185,6 +210,7 @@ class RunSimulation:
                 'Section_CO2_Emission': section_co2_emission,
                 'Section_Volume': section_volume,
                 'traffic_queue': traffic_queue,
+                'green_time': green_time,
                 'sectionBound': str(section.direction)
             })
 
@@ -192,8 +218,8 @@ class RunSimulation:
         time = traci.simulation.getTime()
         vehicle_ids = traci.vehicle.getIDList()
         append_result = self.total_results.append
-        for vehicle_id in vehicle_ids:
-            self.total_co2_emission += traci.vehicle.getCO2Emission(vehicle_id)
+        for sectionid, section in self.rtInfra.getSections().items():
+            self.total_co2_emission += section.getCurrentCO2()
         # print(self.total_volume)
         append_result({
             'Time': time,

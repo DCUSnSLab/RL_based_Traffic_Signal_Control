@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
 
+from Infra import Direction
 from runactuated import RunActuated
 from RunSimulation import RunSimulation, Config_SUMO
 from collections import deque
@@ -28,7 +29,15 @@ class TrafficSimulatorApp(QMainWindow):
         self.signalControlType = None
         self.compData: str = None
 
+        self.sectionColor = {}
+        self.initSectionColor()
         self.initUI()
+
+    def initSectionColor(self):
+        colorset = ('r','g','b','c')
+        for i, dr in enumerate(Direction):
+            print(dr.value[0])
+            self.sectionColor[dr.value[0]] = (dr.name, colorset[i])
 
     def initUI(self):
         self.setWindowTitle("Traffic Simulator Visualization")
@@ -43,20 +52,44 @@ class TrafficSimulatorApp(QMainWindow):
         menu2_layout = QHBoxLayout()
         top_layout = QHBoxLayout()
         state_layout = QHBoxLayout()
+        signal_layout = QVBoxLayout()
+        queue_layout = QVBoxLayout()
+        state_layout.addLayout(signal_layout)
+        state_layout.addLayout(queue_layout)
         emission_layout = QHBoxLayout()
         bottom_layout = QHBoxLayout()
 
         if self.DEBUG is not True:
             # Traffic Lights
-            self.total_volume = pg.PlotWidget(title="Total Volume")
-            self.total_volume.plotItem.setLabels(bottom='Time(s)', left="num of veh")
-            self.total_volume.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-            self.total_volume.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-            self.total_volume.setBackground('w')
-            self.total_volume.setStyleSheet(
+            # self.total_volume = pg.PlotWidget(title="Total Volume")
+            # self.total_volume.plotItem.setLabels(bottom='Time(s)', left="num of veh")
+            # self.total_volume.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+            # self.total_volume.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+            # self.total_volume.setBackground('w')
+            # self.total_volume.setStyleSheet(
+            #     "border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
+            # self.total_volume_curve = self.total_volume.plot(pen="g")
+            # signal_layout.addWidget(self.total_volume)
+
+            self.signalgreenplot = []
+
+            sigplot = pg.PlotWidget(title="Section Signal Green Time")
+            sigplot.plotItem.setLabels(bottom='Time(s)', left="green time")
+            sigplot.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
+            sigplot.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
+            sigplot.setBackground('w')
+            sigplot.plotItem.setYRange(0, 80)
+            y_max = sigplot.plotItem.viewRange()[1][1]
+            sigplot.setStyleSheet(
                 "border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-            self.total_volume_curve = self.total_volume.plot(pen="g")
-            state_layout.addWidget(self.total_volume)
+            for i in range(4):
+                self.signalgreenplot.append(sigplot.plot(pen=self.sectionColor[i][1]))
+                label = pg.TextItem(text='── '+self.sectionColor[i][0]+' ('+self.sectionColor[i][1]+')', color=self.sectionColor[i][1])
+                label.setFont(QFont("Arial", 12))
+                label.setPos(0, y_max-(i*5))
+                sigplot.addItem(label)
+
+            signal_layout.addWidget(sigplot)
 
             # Queue graph
             self.queue_graph = pg.PlotWidget(title="Queue")
@@ -66,7 +99,7 @@ class TrafficSimulatorApp(QMainWindow):
             self.queue_graph.setBackground('w')
             self.queue_graph.setYRange(0, 100)
 
-            state_layout.addWidget(self.queue_graph)
+            queue_layout.addWidget(self.queue_graph)
 
             # Emissions graph
             self.emission_graph = pg.PlotWidget(title="Total Emissions")
@@ -88,8 +121,8 @@ class TrafficSimulatorApp(QMainWindow):
             self.bound_emission_graph.addLegend()
             self.bound_emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
             self.Sb_emission_curve = self.bound_emission_graph.plot(pen="r")
-            self.Nb_emission_curve = self.bound_emission_graph.plot(pen="b")
-            self.Eb_emission_curve = self.bound_emission_graph.plot(pen="g")
+            self.Nb_emission_curve = self.bound_emission_graph.plot(pen="g")
+            self.Eb_emission_curve = self.bound_emission_graph.plot(pen="b")
             self.Wb_emission_curve = self.bound_emission_graph.plot(pen="c")
 
             # Y축 범위 설정
@@ -100,8 +133,8 @@ class TrafficSimulatorApp(QMainWindow):
 
             self.labels = {
                 'SB': pg.TextItem(text='── SB (Red)', color='r'),
-                'NB': pg.TextItem(text='── NB (Blue)', color='b'),
-                'EB': pg.TextItem(text='── EB (Green)', color='g'),
+                'NB': pg.TextItem(text='── NB (Blue)', color='g'),
+                'EB': pg.TextItem(text='── EB (Green)', color='b'),
                 'WB': pg.TextItem(text='── WB (Cyan)', color='c')
             }
             # 각 라벨의 초기 설정 (한 번만 실행)
@@ -340,19 +373,19 @@ class TrafficSimulatorApp(QMainWindow):
         filtered_y = self.low_pass_filter(self.y)
         self.emission_curve.setData(self.x, filtered_y)
 
-        # Total Volume
-        total_x = [result['Time'] for result in total_results]
-        total_y = [result['Total_Volume'] for result in total_results]
-
-        # 필터 적용
-        self.total_volume_curve.setData(total_x, total_y)
+        # # Total Volume
+        # total_x = [result['Time'] for result in total_results]
+        # total_y = [result['Total_Volume'] for result in total_results]
+        #
+        # # 필터 적용
+        # self.total_volume_curve.setData(total_x, total_y)
 
         # Section Emission Graph 데이터 준비
         sections = {
-            '0': ([], []),
-            '1': ([], []),
-            '2': ([], []),
-            '3': ([], [])
+            '0': ([], [], []),
+            '1': ([], [], []),
+            '2': ([], [], []),
+            '3': ([], [], [])
         }
 
         for result in section_results:
@@ -360,6 +393,7 @@ class TrafficSimulatorApp(QMainWindow):
             if section in sections:
                 sections[section][0].append(result['Time'])
                 sections[section][1].append(result['Section_CO2_Emission'])
+                sections[section][2].append(result['green_time'])
 
         # 각 섹션에서 마지막 500개의 데이터만 선택
         filtered_sections = {}
@@ -388,6 +422,9 @@ class TrafficSimulatorApp(QMainWindow):
             self.labels['NB'].setPos(max(time_data[-1] - 500, 0), y_max - 30)
             self.labels['EB'].setPos(max(time_data[-1] - 500, 0), y_max - 50)
             self.labels['WB'].setPos(max(time_data[-1] - 500, 0), y_max - 70)
+
+        for i, sig in enumerate(self.signalgreenplot):
+            sig.setData(sections[str(i)][0], sections[str(i)][2])
 
     def update_data(self):
         # Periodically update the data from the simulation
