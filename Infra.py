@@ -8,10 +8,17 @@ import math
 from traci import TraCIException
 
 class Direction(Enum):
-    SB = 0
-    NB = 1
-    EB = 2
-    WB = 3
+    SB = (0, 4)
+    NB = (1, 6)
+    EB = (2, 0)
+    WB = (3, 2)
+
+    @classmethod
+    def from_first_value(cls, first_value):
+        for member in cls:
+            if member.value[0] == first_value:
+                return member
+        raise ValueError(f"{first_value} is not a valid first value for {cls.__name__}")
 
 class InputStation(Enum):
     SB = '000000'
@@ -52,7 +59,7 @@ class Detector:
             raise ValueError(f"Invalid detector ID format: {id}")
         det_info = parts[1]
         aux = det_info[0]
-        bound = Direction(int(det_info[1]))
+        bound = Direction.from_first_value(int(det_info[1]))
         station_id = det_info[0:6]
         detector_id = det_info[6:]
         return aux, bound, station_id, detector_id
@@ -240,14 +247,17 @@ class Section:
         self.id = id
         self.stations = [] if stations is None else stations
         self.direction = None
+        self.default_greentime = 0
 
         #append data
-        self.section_co2 = deque()
-        self.section_volumes = deque()
-        self.section_queues = deque()
-        self.append_section_co2 = self.section_co2.append
-        self.append_section_volumes = self.section_volumes.append
-        self.append_section_queues = self.section_queues.append
+        self.__section_co2 = deque()
+        self.__section_volumes = deque()
+        self.__section_queues = deque()
+        self._section_greentime = deque()
+        self.append_section_co2 = self.__section_co2.append
+        self.append_section_volumes = self.__section_volumes.append
+        self.append_section_queues = self.__section_queues.append
+        self.append_section_greentime = self._section_greentime.append
 
         self.__define_direction()
 
@@ -260,10 +270,14 @@ class Section:
         self.__define_direction()
 
     def collect_data(self):
-        return self.section_co2[-1], self.section_volumes[-1], self.section_queues[-1]
+        return self.__section_co2[-1], self.__section_volumes[-1], self.__section_queues[-1], self._section_greentime[-1]
 
     def getCurrentCO2(self):
-        return self.section_co2[-1]
+        return self.__section_co2[-1]
+
+    def getCurrentGreenTime(self):
+        return self._section_greentime[-1]
+
 
     def update(self):
         pass
@@ -289,7 +303,25 @@ class SSection(Section):
 
         #for data
         self.traffic_queue = 0
+        self.current_greentime = -1
         self.section_vehicles = set()
+
+    def setGreenTime(self, greetime, logic):
+        self.current_greentime = greetime
+        self.__setSignalGreenTime(greetime, logic)
+
+    def updateGreentime(self):
+        if self.current_greentime != -1:
+            self.append_section_greentime(self.current_greentime)
+        else:
+            if len(self._section_greentime) > 0:
+                self.append_section_greentime(self._section_greentime[-1])
+            else:
+                self.append_section_greentime(self.default_greentime)
+
+
+    def __setSignalGreenTime(self, time, logic):
+        logic.phases[self.direction.value[1]].duration = time
 
     def update(self):
         section_co2_emission = 0
@@ -328,6 +360,7 @@ class SSection(Section):
         self.append_section_co2(section_co2_emission)
         self.append_section_volumes(section_volume)
 
+        self.updateGreentime()
         # if self.id == '2':
         #     print('Sid : ',self.id, ', Queue : ')
         #     print('---- VehIds : ', self.section_vehicles)
