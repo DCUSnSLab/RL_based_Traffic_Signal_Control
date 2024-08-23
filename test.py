@@ -1,7 +1,7 @@
 import pickle
 
 from Infra import Detector, SDetector, SStation, SSection, Infra, DSection, Direction
-from RunSimulation import Config_SUMO
+from RunSimulation import Config_SUMO, SECTION_RESULT
 
 # detector = SDetector("Det_03001700")
 # detector2 = SDetector("Det_03001701")
@@ -42,7 +42,5 @@ from RunSimulation import Config_SUMO
 #
 # print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
 
-a = Direction.from_first_value(1)
-print(a)
-print(a.name)
-print(a.value[1])
+for sr in SECTION_RESULT:
+    print(sr)
