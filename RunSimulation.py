@@ -19,15 +19,6 @@ class Config_SUMO:
 
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
-class SECTION_RESULT(Enum):
-    TIME = (0, 'Time')
-    SECTIONID = (1, 'Section')
-    CO2_EMISSION = (2, 'Section_CO2_Emission')
-    VOLUME = (3, 'Section_Volume')
-    TRAFFIC_QUEUE = (4, 'traffic_queue')
-    GREEN_TIME = (5, 'green_time')
-    DIRECTION = (6, 'direction')
-
 class RunSimulation:
     def __init__(self, config, name="Static Control"):
         self.sigTypeName = name
@@ -178,15 +169,16 @@ class RunSimulation:
 
             # print('Green times: ', end='')
 
-            for section_id, section in self.rtInfra.getSections().items():
-                section.update()
+            self.rtInfra.update()
+            # for section_id, section in self.rtInfra.getSections().items():
+            #     section.update()
 
             #     print(section.direction.name, ": ", section.getCurrentGreenTime(), end=', ')
             # print()
             # print(f"Green times: {green_times}, Surplus rates: {surplus_rates}, Waiting times: {waiting_times}")
 
-            self.make_data()
-            self.make_total(step)
+            #self.make_data()
+            #self.make_total(step)
 
             step += 1
 
@@ -201,27 +193,6 @@ class RunSimulation:
             signal_states = 'N/A'
         return signal_states
 
-    def make_data(self):
-
-        time = traci.simulation.getTime()
-        append_result = self.section_results.append
-
-        for section_id, section in self.rtInfra.getSections().items():
-            section_co2_emission, section_volume, traffic_queue, green_time = section.collect_data()
-
-            #make total volume
-            self.total_volume += section_volume
-
-            #print("%s - v: %d, Q: %d"%(section_id, section_volume, section_queue))
-            append_result({
-                SECTION_RESULT.TIME.value[1]: time,
-                SECTION_RESULT.SECTIONID.value[1]: section_id,
-                SECTION_RESULT.CO2_EMISSION.value[1]: section_co2_emission,
-                SECTION_RESULT.VOLUME.value[1]: section_volume,
-                SECTION_RESULT.TRAFFIC_QUEUE.value[1]: traffic_queue,
-                SECTION_RESULT.GREEN_TIME.value[1]: green_time,
-                SECTION_RESULT.DIRECTION.value[1]: str(section.direction)
-            })
 
     def make_total(self, step):
         time = traci.simulation.getTime()

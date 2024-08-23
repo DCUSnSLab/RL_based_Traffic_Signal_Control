@@ -1,18 +1,19 @@
+import numpy as np
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
 from pyqtgraph import PlotWidget
 
-from Infra import Direction
-from RunSimulation import SECTION_RESULT
+from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT
 
 
 class PlotObject():
-    def __init__(self, title, l_bottom, l_left):
+    def __init__(self, title, l_bottom, l_left, ismoving=False):
         self.__title = title
         self.__label_bottom = l_bottom
         self.__label_left = l_left
+        self._isMoving = ismoving
 
         self._plotwidget: PlotWidget = None
         self._plots = []
@@ -24,8 +25,7 @@ class PlotObject():
         self.__initUI()
 
         #data
-        self.section_results = None
-        self.total_results = None
+        self.rtinfra: Infra = None
         self.total_result_comp = None
 
     def __initUI(self):
@@ -44,6 +44,13 @@ class PlotObject():
         self._plotwidget.plotItem.setYRange(min, max)
         self.__y_max = self._plotwidget.plotItem.viewRange()[1][1]
 
+    def setLabelPos(self, x, y_max):
+        d_gap = y_max * 0.07
+        y_max -= d_gap
+        for label in self._labels:
+            label.setPos(x, y_max)
+            y_max -= d_gap
+
     def addPlot(self, name='default', color='black'):
         self._plots.append(self._plotwidget.plot(pen=color))
 
@@ -53,19 +60,24 @@ class PlotObject():
         self._plotwidget.addItem(label)
         self._labels.append(label)
 
-    def updateData(self):
+    def updateLabels(self, xmin=0):
+        y_max = self._plotwidget.plotItem.viewRange()[1][1]
+        self.setLabelPos(xmin, y_max)
+
+    def updatePlot(self):
         pass
 
-    def update(self, section_results, total_results, total_result_comp):
-        self.section_results = section_results
-        self.total_results = total_results
+    def update(self, rtinfra, total_result_comp):
+        self.rtinfra = rtinfra
         self.total_result_comp = total_result_comp
-        self.updateData()
+        self.updateLabels()
+        self.updatePlot()
+
 
 
 class PlotSection(PlotObject):
-    def __init__(self, title, l_bottom, l_left, sel_data):
-        super().__init__(title, l_bottom, l_left)
+    def __init__(self, title, l_bottom, l_left, sel_data, ismoving=False):
+        super().__init__(title, l_bottom, l_left, ismoving)
         self.sectionColor = {}
         self.__initSectionColor()
         self.__initSectionplot()
@@ -80,25 +92,30 @@ class PlotSection(PlotObject):
         for i in range(4):
             self.addPlot(self.sectionColor[i][0], self.sectionColor[i][1])
 
-    def updateData(self):
-        # Section Emission Graph 데이터 준비
-        sections = {
-            '0': ([], [], []),
-            '1': ([], [], []),
-            '2': ([], [], []),
-            '3': ([], [], [])
-        }
-        sections = {}
-
-        for result in self.section_results:
-            section = result['Section']
-            if section in sections:
-                for sr in SECTION_RESULT:
-                    sections[section][sr.value[0]].append(result[sr.value[1]])
-            else:
-                sections[section] = []
-                for sr in SECTION_RESULT:
-                    sections[section].append([])
-
+    def updatePlot(self):
+        sections = self.rtinfra.getSections()
+        time_data = None#self.rtinfra.getTime()
+        data = None
         for i, plot in enumerate(self._plots):
-            plot.setData(sections[str(i)][SECTION_RESULT.TIME.value[0]], sections[str(i)][self.__sel_data.value[0]])
+            time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIME)
+            data = sections[str(i)].getDatabyID(self.__sel_data)
+            if self._isMoving is True:
+                time_data = list(time_data)[-500:]
+                data = list(data)[-500:]
+            plot.setData(time_data, data)
+
+        if self._isMoving is True:
+            self._plotwidget.plotItem.setXRange(max(time_data[-1] - 500, 0), time_data[-1])
+            self.updateLabels(max(time_data[-1] - 500, 0))
+
+class PlotSectionInfra(PlotObject):
+    def __init__(self, title, l_bottom, l_left, sel_data, ismoving=False):
+        super().__init__(title, l_bottom, l_left, ismoving)
+        self.__sel_data: TOTAL_RESULT = sel_data
+        self.addPlot('data', 'r')
+    def updatePlot(self):
+        time_data = self.rtinfra.getTime()
+        data = self.rtinfra.getDatabyID(self.__sel_data)
+        if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
+            data = np.array(data) / 1000
+        self._plots[0].setData(time_data, data)

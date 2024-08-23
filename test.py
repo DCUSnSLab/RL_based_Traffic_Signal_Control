@@ -1,7 +1,5 @@
 import pickle
 
-from Infra import Detector, SDetector, SStation, SSection, Infra, DSection, Direction
-from RunSimulation import Config_SUMO, SECTION_RESULT
 
 # detector = SDetector("Det_03001700")
 # detector2 = SDetector("Det_03001701")
@@ -37,10 +35,8 @@ from RunSimulation import Config_SUMO, SECTION_RESULT
 #     pickle.dump(infra, f)
 
 # 역직렬화
-# with open("Static Control_20240821230340.data", "rb") as f:
-#     loaded_infra = pickle.load(f)
-#
-# print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
+with open("Actuated Control OCC_20240824031306.data", "rb") as f:
+    loaded_infra = pickle.load(f)
 
-for sr in SECTION_RESULT:
-    print(sr)
+print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
+
