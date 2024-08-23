@@ -47,6 +47,7 @@ class Detector:
         self.speeds = deque()
         self.append_volumes = self.volumes.append
         self.append_speeds = self.speeds.append
+        self.prevVehicles = tuple()
 
     def __str__(self):
         return f"Detector {self.id} at station {self.station_id} volumes {len(self.volumes)} and speeds {len(self.speeds)}"
@@ -69,13 +70,19 @@ class Detector:
         pass
 
     def getVolume(self):
-        return self.volumes[-1]
+        if len(self.volumes) > 0:
+            return self.volumes[-1]
+        else:
+            return -1
 
     def getVehicles(self):
         return self.prevVehicles
 
     def getSpeed(self):
-        return self.speeds[-1]
+        if len(self.speeds) > 0:
+            return self.speeds[-1]
+        else:
+            return -1
 
         # 직렬화할 데이터를 정의하는 메서드
     def __getstate__(self):
@@ -102,7 +109,6 @@ class Detector:
 class SDetector(Detector):
     def __int__(self, id):
         super().__init__(id)
-        self.prevVehicles = tuple()
 
 
     def update(self):
@@ -168,13 +174,22 @@ class Station:
         pass
 
     def getVolume(self):
-        return self.volumes[-1]
+        if len(self.volumes) > 0:
+            return self.volumes[-1]
+        else:
+            return -1
 
     def getSpeed(self):
-        return self.speeds[-1]
+        if len(self.speeds) > 0:
+            return self.speeds[-1]
+        else:
+            return -1
 
     def getExitVolume(self):
-        return self.exitVolumes[-1]
+        if len(self.exitVolumes) > 0:
+            return self.exitVolumes[-1]
+        else:
+            return -1
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -270,13 +285,22 @@ class Section:
         self.__define_direction()
 
     def collect_data(self):
-        return self.__section_co2[-1], self.__section_volumes[-1], self.__section_queues[-1], self._section_greentime[-1]
+        if len(self.__section_volumes) == 0:
+            return 0, 0, 0, 0
+        else:
+            return self.__section_co2[-1], self.__section_volumes[-1], self.__section_queues[-1], self._section_greentime[-1]
 
     def getCurrentCO2(self):
-        return self.__section_co2[-1]
+        if len(self.__section_co2) > 0:
+            return self.__section_co2[-1]
+        else:
+            return -1
 
     def getCurrentGreenTime(self):
-        return self._section_greentime[-1]
+        if len(self._section_greentime) > 0:
+            return self._section_greentime[-1]
+        else:
+            return -1
 
 
     def update(self):

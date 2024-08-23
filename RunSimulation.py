@@ -202,7 +202,7 @@ class RunSimulation:
         return signal_states
 
     def make_data(self):
-        #print('collect data')
+
         time = traci.simulation.getTime()
         append_result = self.section_results.append
 
