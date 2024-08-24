@@ -61,7 +61,6 @@ class RunActuatedOCC(RunSimulation):
             waiting_times[section_id] = waiting_time
 
         # 새로운 신호 설정 적용
-        self._refreshSignalPhase()
         current_step = traci.simulation.getTime()
 
 

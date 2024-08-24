@@ -36,6 +36,7 @@ class RunSimulation:
         self.traffic_light_id = "TLS_0"
         self.isStop = True
 
+        self.original_logic = None
         self.logic = None
 
         #init Infra
@@ -166,7 +167,7 @@ class RunSimulation:
             self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
             self._signalControl()
-
+            self._refreshSignalPhase()
             # print('Green times: ', end='')
 
             for section_id, section in self.rtInfra.getSections().items():

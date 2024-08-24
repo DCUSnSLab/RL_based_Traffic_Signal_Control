@@ -1517,13 +1517,13 @@
     </edge>
 
 	<tlLogic id="TLS_0" type="static" programID="0" offset="150">
-		<phase duration="30" state="rrrrrrrrrrrgggg"/>
+		<phase duration="35" state="rrrrrrrrrrrgggg"/>
 		<phase duration="5"  state="rrrrrrrrrrryyyy"/>
 		<phase duration="33" state="rrrrggggrrrrrrr"/>
 		<phase duration="5"  state="rrrryyyyrrrrrrr"/>
-		<phase duration="89" state="ggggrrrrrrrrrrr"/>
+		<phase duration="37" state="ggggrrrrrrrrrrr"/>
 		<phase duration="5"  state="yyyyrrrrrrrrrrr"/>
-		<phase duration="28" state="rrrrrrrrgggrrrr"/>
+		<phase duration="55" state="rrrrrrrrgggrrrr"/>
 		<phase duration="5"  state="rrrrrrrryyyrrrr"/>
 	</tlLogic>
 
