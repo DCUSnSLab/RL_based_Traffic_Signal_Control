@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
 from pyqtgraph import PlotWidget
+from scipy.signal import butter, filtfilt
 
 from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT
 
@@ -26,7 +27,7 @@ class PlotObject():
 
         #data
         self.rtinfra: Infra = None
-        self.total_result_comp = None
+        self.compare_infra: Infra = None
 
     def __initUI(self):
         self._plotwidget = pg.PlotWidget(title=self.__title)
@@ -60,6 +61,18 @@ class PlotObject():
         self._plotwidget.addItem(label)
         self._labels.append(label)
 
+    def setLabelText(self, idx, name):
+        self._labels[idx].setPlainText(name)
+
+    def low_pass_filter(self, data, cutoff=0.2, fs=1.0, order=1):
+        if len(data) <= 9:  # 필터의 padlen보다 작은 경우
+            return data  # 필터링을 건너뛰고 원래 데이터를 반환
+        nyq = 0.5 * fs  # Nyquist Frequency
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype='low', analog=False)
+        y = filtfilt(b, a, data, padlen=3)  # padlen 값을 줄여서 설정
+        return y
+
     def updateLabels(self, xmin=0):
         y_max = self._plotwidget.plotItem.viewRange()[1][1]
         self.setLabelPos(xmin, y_max)
@@ -67,9 +80,9 @@ class PlotObject():
     def updatePlot(self):
         pass
 
-    def update(self, rtinfra, total_result_comp):
+    def update(self, rtinfra, compare_infra):
         self.rtinfra = rtinfra
-        self.total_result_comp = total_result_comp
+        self.compare_infra = compare_infra
         self.updateLabels()
         self.updatePlot()
 
@@ -102,20 +115,35 @@ class PlotSection(PlotObject):
             if self._isMoving is True:
                 time_data = list(time_data)[-500:]
                 data = list(data)[-500:]
+
+            data = self.low_pass_filter(data)
             plot.setData(time_data, data)
 
         if self._isMoving is True:
             self._plotwidget.plotItem.setXRange(max(time_data[-1] - 500, 0), time_data[-1])
             self.updateLabels(max(time_data[-1] - 500, 0))
 
-class PlotSectionInfra(PlotObject):
-    def __init__(self, title, l_bottom, l_left, sel_data, ismoving=False):
+class PlotInfra(PlotObject):
+    def __init__(self, title, l_bottom, l_left, sel_data, selType, compType=None, ismoving=False):
         super().__init__(title, l_bottom, l_left, ismoving)
         self.__sel_data: TOTAL_RESULT = sel_data
-        self.addPlot('data', 'r')
+        self.__compType = compType
+        #if self.__compType is None:
+        self.addPlot('Legacy', 'b')
+
+        self.__selType = selType
+        self.addPlot('Proposed', 'r')
+
     def updatePlot(self):
         time_data = self.rtinfra.getTime()
         data = self.rtinfra.getDatabyID(self.__sel_data)
+        comptime = self.compare_infra.getTime()
+        compinfra = self.compare_infra.getDatabyID(self.__sel_data) if self.compare_infra is not None else 0
+
         if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
             data = np.array(data) / 1000
-        self._plots[0].setData(time_data, data)
+            compinfra = np.array(compinfra) / 1000
+
+        self._plots[1].setData(time_data, data)
+        if self.compare_infra is not None:
+            self._plots[0].setData(comptime, compinfra)

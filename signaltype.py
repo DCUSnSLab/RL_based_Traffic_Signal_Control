@@ -13,7 +13,7 @@ class SignalMode(Enum):
     ActuatedOCC = (lambda: RunActuatedOCC(config=Config_SUMO(), name="Actuated Control OCC"), "Actuated Control OCC")
     RLBased = (lambda: RunRLBased(config=Config_SUMO(), name="Reinforement Learning based Control"), "Reinforement Learning based Control")
     DilemaZone = (lambda: RunDilemaZone(config=Config_SUMO(), name="DilemaZone Control"), "DilemaZone Control")
-    
+
     @classmethod
     def from_string(cls, string_value):
         for mode in cls:

@@ -7,7 +7,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
 
 from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT
-from plotobject import PlotSection, PlotSectionInfra
+from plotobject import PlotSection, PlotInfra
 from runactuated import RunActuated
 from RunSimulation import RunSimulation, Config_SUMO
 from collections import deque
@@ -45,7 +45,7 @@ class TrafficSimulatorApp(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("Traffic Simulator Visualization")
-        self.setGeometry(100, 100, 1920, 1080)
+        self.setGeometry(0, 0, 1280, 720)
 
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
@@ -85,7 +85,7 @@ class TrafficSimulatorApp(QMainWindow):
 
             #queue_layout.addWidget(self.queue_graph)
 
-            te = PlotSectionInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2)
+            te = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2, self.signalControlType)
             self.plotlist.append(te)
             emission_layout.addWidget(te.getWidtget())
 
@@ -291,21 +291,14 @@ class TrafficSimulatorApp(QMainWindow):
             pass
 
     @pyqtSlot(object, object)
-    def update_graph(self, rtinfra, total_result_comp):
+    def update_graph(self, rtinfra, compare_infra):
         #self.draw_filtered_graph(rtinfra, total_results, total_result_comp)
 
         for pl in self.plotlist:
-            pl.update(rtinfra, total_result_comp)
+            pl.update(rtinfra, compare_infra)
 
 
-    def low_pass_filter(self, data, cutoff=0.2, fs=1.0, order=1):
-        if len(data) <= 9:  # 필터의 padlen보다 작은 경우
-            return data  # 필터링을 건너뛰고 원래 데이터를 반환
-        nyq = 0.5 * fs  # Nyquist Frequency
-        normal_cutoff = cutoff / nyq
-        b, a = butter(order, normal_cutoff, btype='low', analog=False)
-        y = filtfilt(b, a, data, padlen=3)  # padlen 값을 줄여서 설정
-        return y
+
 
     def draw_filtered_graph(self, section_results, total_results, total_result_comp):
         # comp Total Emission Graph
@@ -400,7 +393,7 @@ class SimulationThread(QThread):
     def emit_results(self):
         self.results_signal.emit(
             self.controller.rtInfra,
-            self.controller.total_results_comp
+            self.controller.compareInfra
         )
 
 def my_exception_hook(exctype, value, traceback):
