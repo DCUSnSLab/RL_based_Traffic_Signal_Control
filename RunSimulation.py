@@ -6,7 +6,7 @@ from typing import Dict
 import traci
 import pandas as pd
 from collections import deque
-from Infra import SDetector, SStation, SSection, DDetector, Infra
+from Infra import SDetector, SStation, SSection, DDetector, Infra, SECTION_RESULT
 
 
 class Config_SUMO:
@@ -20,10 +20,12 @@ class Config_SUMO:
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
 class RunSimulation:
-    def __init__(self, config, name="Static Control"):
+    def __init__(self, config, name="Static Control", isExtract=False):
         self.sigTypeName = name
         self.config = config
-        self.__set_SUMO()
+        self.setDone = False
+        if isExtract is False:
+            self.__set_SUMO()
         self.section_results = deque()
         self.total_results = deque()
         self.total_results_comp = deque()
@@ -89,7 +91,8 @@ class RunSimulation:
         section_objects = {}
         logic = None
         if sectionclass is SSection:
-            logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
+            if self.setDone is True:
+                logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
         for station_id in stations:
             section_id = station_id[1]
@@ -106,6 +109,7 @@ class RunSimulation:
     def __set_SUMO(self):
         traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start"])
         traci.simulationStep()
+        self.setDone = True
 
     def __str__(self):
         return self.sigTypeName
@@ -128,20 +132,46 @@ class RunSimulation:
         if fileName is not None:
             print('load Infra File - ', fileName)
             self.__make_Infra(isNew=False, fileName=fileName)
-            self.__make_total_comp()
+            #self.__make_total_comp()
 
 
-    def extract_excel(self):
-        df = pd.DataFrame(self.section_results)
+    def extract_excel(self, saveCompare=False):
+        section_results = deque()
+        append_result = section_results.append
+        file_name = ""
+        if saveCompare is False:
+            data = self.rtInfra
+        else:
+            data = self.compareInfra
+            file_name = 'extract_'
+
+        timedata = data.getSections()['0'].getDatabyID(SECTION_RESULT.TIME)
+        for i, time in enumerate(timedata):
+            for section_id, section in data.getSections().items():
+                section_co2_emission, section_volume, traffic_queue, green_time = section.collect_data()
+
+                # print("%s - v: %d, Q: %d"%(section_id, section_volume, section_queue))
+                append_result({
+                    'Time': time,
+                    'Section': section_id,
+                    'Section_CO2_Emission': section.getDatabyID(SECTION_RESULT.CO2_EMISSION)[i],
+                    'Section_Volume': section.getDatabyID(SECTION_RESULT.VOLUME)[i],
+                    'traffic_queue': section.getDatabyID(SECTION_RESULT.TRAFFIC_QUEUE)[i],
+                    'green_time': section.getDatabyID(SECTION_RESULT.GREEN_TIME)[i],
+                    'sectionBound': str(section.direction)
+                })
+
+        df = pd.DataFrame(section_results)
 
         co2_emission_df = df.pivot(index='Time', columns='Section', values='Section_CO2_Emission')
         volume_df = df.pivot(index='Time', columns='Section', values='Section_Volume')
         queue_df = df.pivot(index='Time', columns='Section', values='traffic_queue')
-
-        with pd.ExcelWriter('section_results.xlsx') as writer:
+        greentime_df = df.pivot(index='Time', columns='Section', values='green_time')
+        with pd.ExcelWriter(file_name+'section_results.xlsx') as writer:
             co2_emission_df.to_excel(writer, sheet_name='Section_CO2_Emission')
             volume_df.to_excel(writer, sheet_name='Section_Volume')
             queue_df.to_excel(writer, sheet_name='traffic_queue')
+            greentime_df.to_excel(writer, sheet_name='traffic_queue')
 
         print("Maked Excel")
 
@@ -170,15 +200,16 @@ class RunSimulation:
             self._refreshSignalPhase()
             # print('Green times: ', end='')
 
-            for section_id, section in self.rtInfra.getSections().items():
-                section.update()
+            self.rtInfra.update()
+            # for section_id, section in self.rtInfra.getSections().items():
+            #     section.update()
 
             #     print(section.direction.name, ": ", section.getCurrentGreenTime(), end=', ')
             # print()
             # print(f"Green times: {green_times}, Surplus rates: {surplus_rates}, Waiting times: {waiting_times}")
 
-            self.make_data()
-            self.make_total(step)
+            #self.make_data()
+            #self.make_total(step)
 
             step += 1
 
@@ -193,27 +224,6 @@ class RunSimulation:
             signal_states = 'N/A'
         return signal_states
 
-    def make_data(self):
-        #print('collect data')
-        time = traci.simulation.getTime()
-        append_result = self.section_results.append
-
-        for section_id, section in self.rtInfra.getSections().items():
-            section_co2_emission, section_volume, traffic_queue, green_time = section.collect_data()
-
-            #make total volume
-            self.total_volume += section_volume
-
-            #print("%s - v: %d, Q: %d"%(section_id, section_volume, section_queue))
-            append_result({
-                'Time': time,
-                'Section': section_id,
-                'Section_CO2_Emission': section_co2_emission,
-                'Section_Volume': section_volume,
-                'traffic_queue': traffic_queue,
-                'green_time': green_time,
-                'sectionBound': str(section.direction)
-            })
 
     def make_total(self, step):
         time = traci.simulation.getTime()

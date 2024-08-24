@@ -7,6 +7,7 @@ import traci
 import math
 from traci import TraCIException
 
+
 class Direction(Enum):
     SB = (0, 4)
     NB = (1, 6)
@@ -31,6 +32,19 @@ class SMUtil:
     secPerHour = 3600
     sec = 1
 
+class SECTION_RESULT(Enum):
+    TIME = 'Time'
+    SECTIONID = 'Sectionid'
+    CO2_EMISSION = 'Section_CO2_Emission'
+    VOLUME = 'Section_Volume'
+    TRAFFIC_QUEUE = 'traffic_queue'
+    GREEN_TIME = 'green_time'
+    DIRECTION = 'direction'
+
+class TOTAL_RESULT(Enum):
+    TIME = 'Time'
+    TOTAL_CO2 = 'Total CO2'
+    TOTAL_VOLUME = 'TOtal Volume'
 
 def get_input_station_value(direction: Direction) -> str:
     # Direction의 name으로 InputStation을 찾아서 value를 반환
@@ -47,6 +61,7 @@ class Detector:
         self.speeds = deque()
         self.append_volumes = self.volumes.append
         self.append_speeds = self.speeds.append
+        self.prevVehicles = tuple()
 
     def __str__(self):
         return f"Detector {self.id} at station {self.station_id} volumes {len(self.volumes)} and speeds {len(self.speeds)}"
@@ -69,13 +84,19 @@ class Detector:
         pass
 
     def getVolume(self):
-        return self.volumes[-1]
+        if len(self.volumes) > 0:
+            return self.volumes[-1]
+        else:
+            return -1
 
     def getVehicles(self):
         return self.prevVehicles
 
     def getSpeed(self):
-        return self.speeds[-1]
+        if len(self.speeds) > 0:
+            return self.speeds[-1]
+        else:
+            return -1
 
         # 직렬화할 데이터를 정의하는 메서드
     def __getstate__(self):
@@ -102,7 +123,6 @@ class Detector:
 class SDetector(Detector):
     def __int__(self, id):
         super().__init__(id)
-        self.prevVehicles = tuple()
 
 
     def update(self):
@@ -168,13 +188,22 @@ class Station:
         pass
 
     def getVolume(self):
-        return self.volumes[-1]
+        if len(self.volumes) > 0:
+            return self.volumes[-1]
+        else:
+            return -1
 
     def getSpeed(self):
-        return self.speeds[-1]
+        if len(self.speeds) > 0:
+            return self.speeds[-1]
+        else:
+            return -1
 
     def getExitVolume(self):
-        return self.exitVolumes[-1]
+        if len(self.exitVolumes) > 0:
+            return self.exitVolumes[-1]
+        else:
+            return -1
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -250,15 +279,23 @@ class Section:
         self.default_greentime = 0
 
         #append data
+        self.__time = deque()
         self.__section_co2 = deque()
         self.__section_volumes = deque()
         self.__section_queues = deque()
         self._section_greentime = deque()
+        self.append_section_time = self.__time.append
         self.append_section_co2 = self.__section_co2.append
         self.append_section_volumes = self.__section_volumes.append
         self.append_section_queues = self.__section_queues.append
         self.append_section_greentime = self._section_greentime.append
 
+        self.dataDic = dict()
+        self.dataDic[SECTION_RESULT.TIME] = self.__time
+        self.dataDic[SECTION_RESULT.CO2_EMISSION] = self.__section_co2
+        self.dataDic[SECTION_RESULT.TRAFFIC_QUEUE] = self.__section_queues
+        self.dataDic[SECTION_RESULT.GREEN_TIME] = self._section_greentime
+        self.dataDic[SECTION_RESULT.VOLUME] = self.__section_volumes
         self.__define_direction()
 
     def __define_direction(self):
@@ -270,16 +307,44 @@ class Section:
         self.__define_direction()
 
     def collect_data(self):
-        return self.__section_co2[-1], self.__section_volumes[-1], self.__section_queues[-1], self._section_greentime[-1]
+        if len(self.__section_volumes) == 0:
+            return 0, 0, 0, 0
+        else:
+            return self.__section_co2[-1], self.__section_volumes[-1], self.__section_queues[-1], self._section_greentime[-1]
+
+    def getCurrentQueue(self):
+        if len(self.__section_queues) > 0:
+            return self.__section_queues[-1]
+        else:
+            return 0
 
     def getCurrentCO2(self):
-        return self.__section_co2[-1]
+        if len(self.__section_co2) > 0:
+            return self.__section_co2[-1]
+        else:
+            return 0
+
+    def getCurrentVol(self):
+        if len(self.__section_volumes) > 0:
+            return self.__section_volumes[-1]
+        else:
+            return 0
 
     def getCurrentGreenTime(self):
-        return self._section_greentime[-1]
+        if len(self._section_greentime) > 0:
+            return self._section_greentime[-1]
+        else:
+            return 0
 
+    def getCurrentTime(self):
+        if len(self.__time) > 0:
+            return self.__time[-1]
+        return 0
 
-    def update(self):
+    def getDatabyID(self, id: SECTION_RESULT):
+        return self.dataDic[id]
+
+    def update(self, time):
         pass
 
     def print(self):
@@ -323,7 +388,7 @@ class SSection(Section):
     def __setSignalGreenTime(self, time, logic):
         logic.phases[self.direction.value[1]].duration = time
 
-    def update(self):
+    def update(self, time):
         section_co2_emission = 0
         section_volume = 0
         removal_veh = list()
@@ -359,7 +424,7 @@ class SSection(Section):
         self.append_section_queues(self.traffic_queue)
         self.append_section_co2(section_co2_emission)
         self.append_section_volumes(section_volume)
-
+        self.append_section_time(time)
         self.updateGreentime()
         # if self.id == '2':
         #     print('Sid : ',self.id, ', Queue : ')
@@ -387,17 +452,41 @@ class Infra:
         self.scenario_file = scenario_file
         self.__sections = sections
 
-        self.__totalresult = deque()
+        self.__time = deque()
+        self.__totalCO2 = deque()
+        self.__totalVolume = deque()
+        self.append_time = self.__time.append
+        self.append_totalCO2 = self.__totalCO2.append
+        self.append_totalVolume = self.__totalVolume.append
+        self.dataDic = {}
+        self.dataDic[TOTAL_RESULT.TIME] = self.__time
+        self.dataDic[TOTAL_RESULT.TOTAL_CO2] = self.__totalCO2
+        self.dataDic[TOTAL_RESULT.TOTAL_VOLUME] = self.__totalVolume
 
         self.sigType: str = sigtype
         self.__savedTime: datetime = None
         self.__savefileName: str = None
 
-    def addTotalResult(self, data):
-        self.__totalresult.append(data)
+    def update(self):
+        totalCO2 = 0
+        totalVol = 0
+        time = traci.simulation.getTime()
+        for section_id, section in self.getSections().items():
+            section.update(time)
+            totalCO2 += section.getCurrentCO2()
+            totalVol += section.getCurrentVol()
 
-    def getTotalResult(self):
-        return self.__totalresult
+        totalCO2 = self.__totalCO2[-1] + totalCO2 if len(self.__totalCO2) > 0 else totalCO2
+        totalVol = self.__totalVolume[-1] + totalVol if len(self.__totalVolume) > 0 else totalVol
+        self.append_totalCO2(totalCO2)
+        self.append_totalVolume(totalVol)
+        self.append_time(time)
+
+    def getDatabyID(self, totalresult: TOTAL_RESULT):
+        return self.dataDic[totalresult]
+
+    def getTime(self):
+        return self.__time
 
     def getSections(self) -> dict:
         return self.__sections
