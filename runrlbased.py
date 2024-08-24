@@ -31,12 +31,17 @@ class RunRLBased(RunSimulation):
         if self.id:
             self._build_phases()  # 신호등 단계 초기화
         self.max_queue_capacities = {
-            0: 107,  # 섹션 0의 최대 대기 차량 수
-            1: 88,  # 섹션 1의 최대 대기 차량 수
-            2: 126,  # 섹션 2의 최대 대기 차량 수
-            3: 119,  # 섹션 3의 최대 대기 차량 수
+            "0": 107,  # 섹션 0의 최대 대기 차량 수
+            "1": 88,  # 섹션 1의 최대 대기 차량 수
+            "2": 126,  # 섹션 2의 최대 대기 차량 수
+            "3": 119,  # 섹션 3의 최대 대기 차량 수
         }
-
+        self.max_CO2_emissions = {
+            '0': 318,  # 섹션 0의 CO2 최대 배출량
+            '1': 394,  # 섹션 1의 CO2 최대 배출량
+            '2': 297,  # 섹션 2의 CO2 최대 배출량
+            '3': 242,  # 섹션 3의 CO2 최대 배출량
+        }
     def model_load(self):
         model_path = "New_TestWay/RL_Based_ep100"
         self.model = DQN.load(model_path)
@@ -58,7 +63,6 @@ class RunRLBased(RunSimulation):
         print(f"action: {action}")
 
         self.traffic_step(action)
-        self._run_steps()
     # def observation_space(self) -> spaces.Box:
     #     """Return the observation space based on the Section data."""
     #     if not self.rtInfra.getSections():
@@ -97,14 +101,14 @@ class RunRLBased(RunSimulation):
 
         for section_id, section in self.rtInfra.getSections().items():
             co2, volume, traffic_queue, green_time = section.collect_data()
-
+            print("traffic_queue:", traffic_queue)
             # 데이터 출력
             # print(f"collect_data : {co2}, {volume}, {traffic_queue}, {green_time}")
             # print(f"get_Section_density_traffic_queue for section {section_id}: {traffic_queue}")
 
             # 각 섹션의 최대 대기 차량 수를 가져옵니다
-            max_queue_capacity = self.max_queue_capacities.get(section_id, 50)  # 기본값 50 설정
-
+            max_queue_capacity = self.max_queue_capacities.get(section_id, 100)
+            print(f"Max Queue Capacity for section {section_id}: {max_queue_capacity}")
             if max_queue_capacity > 0:
                 # 밀도 계산
                 density = min(1, traffic_queue / max_queue_capacity)
@@ -168,45 +172,36 @@ class RunRLBased(RunSimulation):
         #     return np.zeros(self.observation_space().shape, dtype=np.float32)
     def compute_observation(self):
         self.queue = []
-        try:
-            # Phase ID (assuming green_phase is an integer and num_green_phases is the total number of phases)
-            phase_id = [1 if self.green_phase == i else 0 for i in
-                        range(min(self.num_green_phases, 15))]  # One-hot encoding
-            min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
+        self.co2_emissions = []
+        self.queue_density = []
+        self.co2_density = []
+        # Phase ID (assuming green_phase is an integer and num_green_phases is the total number of phases)
+        phase_id = [1 if self.green_phase == i else 0 for i in
+                    range(min(self.num_green_phases, 15))]  # One-hot encoding
+        min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
+        for section_id, section in self.rtInfra.getSections().items():
+            section_co2_emission, _, traffic_queue, _ = section.collect_data()
+            max_CO2_emission = self.max_CO2_emissions.get(section_id)
+            print(f"Section {section_id}- co2: {section_co2_emission}, max_co2: {max_CO2_emission}")
+            normalized_co2 = section_co2_emission / max_CO2_emission
+            self.co2_density.append(max(0, 1 - normalized_co2))
+            print(f"Section {section_id}- nomalized_co2: {self.co2_density}")
 
-            # Density calculation (assumes get_Section_density returns a list of densities)
-            density = self.get_Section_density()
-            if density is None:
-                density = [0] * 4  # Replace with a list of zeros of the expected length
+            max_queue_capacity = self.max_queue_capacities.get(section_id)
+            print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
+            normalized_queue = traffic_queue / max_queue_capacity
+            self.queue_density.append(max(0, 1 - normalized_queue))
+            print(f"Section {section_id}- nomalized_queue: {self.queue_density}")
+            # print("co2_emissions:", self.co2_emissions)
+        observation = phase_id + min_green + self.co2_density + self.queue_density
+        # observation = phase_id + min_green + self.co2_emissions + self.queue
+        # print("pre_observation: ", observation)
+        if len(observation) < 16:
+            observation.extend([0] * (16 - len(observation)))
 
-            # CO2 Emission calculation
-            co2_emissions = []
-            for section_id, section in self.rtInfra.getSections().items():
-                section_co2_emission, _, _, _ = section.collect_data()
-                co2_emissions.append(section_co2_emission)
-            if len(co2_emissions) != 4:
-                co2_emissions = [0] * 4  # Ensure the list has the correct length
-
-            # Queue calculation (fetching the latest value from deque)
-            for section_id, section in self.rtInfra.getSections().items():
-                _, _, traffic_queue, _ = section.collect_data()
-                # Ensure traffic_queue is a list
-                self.queue = traffic_queue if isinstance(traffic_queue, list) else [traffic_queue]
-            flattened_queue = self.queue if isinstance(self.queue, list) else list(self.queue)
-
-            # Combine all parts into one list
-            observation = phase_id + min_green + density + co2_emissions + flattened_queue
-
-            # Ensure the observation has exactly 16 elements
-            if len(observation) < 16:
-                observation.extend([0] * (16 - len(observation)))
-
-            # Convert the observation to a numpy array
-            observation = np.array(observation, dtype=np.float32)
-            return observation
-        except IndexError as e:
-            print(f"IndexError encountered: {e}")
-            return np.zeros(self.observation_space().shape, dtype=np.float32)
+        observation = np.array(observation, dtype=np.float32)
+        print("observation: ", observation)
+        return observation
     def _get_num_phases(self, ts_id):
         """Return the number of phases for a given traffic signal ID."""
         return len(self.sumo.trafficlight.getRedYellowGreenState(ts_id))  # 신호 상태 문자열 길이를 통해 단계 수 반환
@@ -253,7 +248,7 @@ class RunRLBased(RunSimulation):
         new_phase = int(new_phase)
         # print(f"Attempting to set new phase: {new_phase}")
         if self.green_phase == new_phase or self.time_since_last_phase_change < self.yellow_time + self.min_green:
-            # print(f"Currently green phase: {self.green_phase}")
+            print(f"Currently green phase: {self.green_phase}")
             # print(f"time_since_last_phase_change: ", self.time_since_last_phase_change,  "self.yellow_time", self.yellow_time, "self.min_green", self.min_green)
             if self.green_phase >= len(self.all_phases):
                 # print(f"Error: Current green_phase {self.green_phase} is out of range.")

@@ -1,7 +1,5 @@
 import pickle
 
-from Infra import Detector, SDetector, SStation, SSection, Infra, DSection, Direction
-from RunSimulation import Config_SUMO
 
 # detector = SDetector("Det_03001700")
 # detector2 = SDetector("Det_03001701")
@@ -33,23 +31,12 @@ from RunSimulation import Config_SUMO
 # print(type(section))
 # infra = Infra(Config_SUMO.sumocfg_path, Config_SUMO.scenario_path, Config_SUMO.scenario_file, list(section_objects.values()))
 
-with open("infra.pkl", "wb") as f:
-    pickle.dump(infra, f)
+# with open("infra.pkl", "wb") as f:
+#     pickle.dump(infra, f)
 
 # 역직렬화
-<<<<<<< HEAD
-# with open("Static Control_20240821230340.data", "rb") as f:
-#     loaded_infra = pickle.load(f)
-#
-# print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
+with open("Actuated Control OCC_20240824031306.data", "rb") as f:
+    loaded_infra = pickle.load(f)
 
-a = Direction.from_first_value(1)
-print(a)
-print(a.name)
-print(a.value[1])
-=======
-# with open("infra.pkl", "rb") as f:
-#     loaded_infra = pickle.load(f)
+print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
 
-# print("직렬화된 Detector 객체:", type(loaded_infra), loaded_infra)
->>>>>>> 4addd6d5b4f6f4020620151f9907e65de4c259fc

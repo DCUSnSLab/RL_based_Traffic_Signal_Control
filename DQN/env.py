@@ -368,16 +368,15 @@ class SumoEnvironment(gym.Env):
             self._run_steps()
 
         observations = self._compute_observations()
-        print("observations: ", observations)
+        # print("observations: ", observations)
         rewards = self._compute_rewards()
-        print("rewards: ", rewards)
+        # print("rewards: ", rewards)
         dones = self._compute_dones()
         terminated = False  # there are no 'terminal' states in this environment
         truncated = dones["__all__"]  # episode ends when sim_step >= max_steps
         info = self._compute_info()
 
         if self.single_agent:
-            print("print(self.ts_ids[0])", self.ts_ids[0])
             return observations[self.ts_ids[0]], rewards[self.ts_ids[0]], terminated, truncated, info
 
         else:

@@ -8,7 +8,6 @@ from enum import Enum
 from collections import deque
 from traci import TraCIException
 import traci
-
 if "SUMO_HOME" in os.environ:
     tools = os.path.join(os.environ["SUMO_HOME"], "tools")
     sys.path.append(tools)
@@ -17,7 +16,7 @@ else:
 import numpy as np
 from gymnasium import spaces
 class Config_SUMO:
-    # SUMO Configuration File
+    # SUMO Configuration Files
     sumocfg_path = "../New_TestWay/test_cfg.sumocfg"
     # SUMO Scenario File Path
     scenario_path = "../New_TestWay"
@@ -169,13 +168,16 @@ class Section:
             self.traffic_queue -= station.getExitVolume()
             self.section_vehicles.difference_update(station.getExitVehIds())
 
+            # Ensure traffic_queue does not become negative
+            if self.traffic_queue < 0:
+                print(f"Warning: traffic_queue became negative: {self.traffic_queue}")
+                self.traffic_queue = 0
+
         for vehicle in self.section_vehicles:
             try:
                 if traci.vehicle.getCO2Emission(vehicle) >= 0:
                     self.section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
             except TraCIException:
-                # print('------------------------disappear -> ', vehicle)
-                # self.section_vehicles.remove(vehicle)
                 removal_veh.append(vehicle)
 
         self.section_vehicles.difference_update(removal_veh)
@@ -382,70 +384,7 @@ class TrafficSignal:
     def _average_speed_reward(self):
         return self.get_average_speed()
 
-    def _traffic_queue_reward(self):
-        max_traffic_queue = float('-inf')
 
-        for section_id, section in self.section_objects.items():
-            _, _, traffic_queue, _ = section.collect_data()
-            max_queue_capacity = self.max_queue_capacities.get(section_id, 50)
-            normalized_queue = traffic_queue / max_queue_capacity
-            if normalized_queue > max_traffic_queue:
-                max_traffic_queue = normalized_queue
-
-        traffic_queue_reward = max(0, 1 - max_traffic_queue)
-        return traffic_queue_reward
-
-    def _co2_reward(self):
-        max_CO2_emission = float('-inf')
-
-        for section_id, section in self.section_objects.items():
-            section_co2_emission, _, _, _ = section.collect_data()
-            if section_co2_emission > max_CO2_emission:
-                max_CO2_emission = section_co2_emission
-
-        max_possible_CO2 = max(self.max_CO2_emissions.values())
-        co2_reward = max(0, 1 - max_CO2_emission / max_possible_CO2)
-        return co2_reward
-
-    def _combined_reward_with_section(self, weight_CO2=0.6, weight_max_vehicles=0.4):
-        # 각 세션에 대한 보상 저장
-        section_rewards = {}
-
-        for section_id, section in self.section_objects.items():
-            # 각 섹션의 데이터 수집
-            section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
-
-            # 섹션별 CO2 배출량에 대한 보상 계산
-            max_CO2_emission = self.max_CO2_emissions.get(int(section_id))  # 기본값을 1로 설정하여 분모가 0이 되는 것을 방지
-            # print("max_CO2_emission: ", max_CO2_emission)
-            section_CO2_reward = max(0, 1 - section_co2_emission / max_CO2_emission)
-
-            # 섹션별 대기 큐에 대한 보상 계산
-            max_queue_capacity = self.max_queue_capacities.get(int(section_id))  # 기본값을 1로 설정
-            # print("max_queue_capacity: ", max_queue_capacity)
-            normalized_queue = traffic_queue / max_queue_capacity
-            section_queue_reward = max(0, 1 - normalized_queue)
-
-            # 가중치를 적용한 섹션별 보상 계산
-            section_reward = (weight_CO2 * section_CO2_reward) + (weight_max_vehicles * section_queue_reward)
-            section_rewards[section_id] = section_reward
-
-            # 디버깅용 출력
-            print(f"Section {section_id}: CO2 Reward: {section_CO2_reward}, Queue Reward: {section_queue_reward}, Combined Reward: {section_reward}")
-
-        # 가장 낮은 보상치를 가진 세션 식별
-        worst_section_id = min(section_rewards, key=section_rewards.get)
-        worst_section_reward = section_rewards[worst_section_id]
-
-        # 보상 값 확인
-
-        print(f"Section Rewards: {section_rewards}")
-        print(f"Worst Section: {worst_section_id} with Reward: {worst_section_reward}")
-        print("%%%" * 30)
-
-        # 최악의 세션의 보상만 반환
-        return worst_section_reward
-    #
     # def _combined_reward_with_section(self, weight_CO2=0.6, weight_max_vehicles=0.4):
     #     # 각 세션에 대한 보상 저장
     #     section_rewards = {}
@@ -453,12 +392,15 @@ class TrafficSignal:
     #     for section_id, section in self.section_objects.items():
     #         # 각 섹션의 데이터 수집
     #         section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
+    #         # print(f"section_id: {section_id}, traffic_signal_traffic_queue: {traffic_queue}",)
     #         # 섹션별 CO2 배출량에 대한 보상 계산
-    #         max_CO2_emission = self.max_CO2_emissions.get(int(section_id), 1)  # 기본값을 1로 설정
+    #         max_CO2_emission = self.max_CO2_emissions.get(int(section_id))
+    #         print(f"Section {section_id}- co2: {section_co2_emission}, max_co2: {max_CO2_emission}")
     #         section_CO2_reward = max(0, 1 - section_co2_emission / max_CO2_emission)
     #
     #         # 섹션별 대기 큐에 대한 보상 계산
-    #         max_queue_capacity = self.max_queue_capacities.get(int(section_id), 1)  # 기본값을 1로 설정
+    #         max_queue_capacity = self.max_queue_capacities.get(int(section_id))
+    #         print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
     #         normalized_queue = traffic_queue / max_queue_capacity
     #         section_queue_reward = max(0, 1 - normalized_queue)
     #
@@ -469,58 +411,98 @@ class TrafficSignal:
     #         # 디버깅용 출력
     #         print(f"Section {section_id}: CO2 Reward: {section_CO2_reward}, Queue Reward: {section_queue_reward}, Combined Reward: {section_reward}")
     #
-    #     # 전체 시스템 보상 계산
-    #     total_reward = sum(section_rewards.values()) / len(section_rewards)  # 평균 보상
+    #     # 가장 낮은 보상치를 가진 세션 식별
+    #     worst_section_id = min(section_rewards, key=section_rewards.get)
+    #     worst_section_reward = section_rewards[worst_section_id]
     #
     #     # 보상 값 확인
+    #
     #     print(f"Section Rewards: {section_rewards}")
-    #     print(f"Total System Reward: {total_reward}")
+    #     print(f"Worst Section: {worst_section_id} with Reward: {worst_section_reward}")
     #     print("%%%" * 30)
     #
-    #     # 전체 시스템 보상 반환
-    #     return total_reward
+    #     # 최악의 세션의 보상만 반환
+    #     return worst_section_reward
 
-    def _observation_fn_default(self):
-        from observations import DefaultObservationFunction, ObservationFunction
-        self.queue = []
-        try:
-            # Phase ID (assuming green_phase is an integer and num_green_phases is the total number of phases)
-            phase_id = [1 if self.green_phase == i else 0 for i in
-                        range(min(self.num_green_phases, 15))]  # One-hot encoding
-            min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
+    def _combined_reward_with_section(self, weight_CO2=0.6, weight_max_vehicles=0.4):
+        # 각 세션에 대한 보상 저장
+        section_rewards = {}
 
-            # Density calculation (assumes get_Section_density returns a list of densities)
-            density = DefaultObservationFunction.get_Section_density(self)
-            if density is None:
-                density = [0] * 4  # Replace with a list of zeros of the expected length
+        for section_id, section in self.section_objects.items():
+            # 각 섹션의 데이터 수집
+            section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
+            # print(f"section_id: {section_id}, traffic_signal_traffic_queue: {traffic_queue}",)
+            # 섹션별 CO2 배출량에 대한 보상 계산
+            max_CO2_emission = self.max_CO2_emissions.get(int(section_id))
+            print(f"Section {section_id}- co2: {section_co2_emission}, max_co2: {max_CO2_emission}")
+            section_CO2_reward = max(0, 1 - section_co2_emission / max_CO2_emission)
 
-            # CO2 Emission calculation
-            co2_emissions = []
-            for section_id, section in self.section_objects.items():
-                section_co2_emission, _, _, _ = section.collect_data()
-                co2_emissions.append(section_co2_emission)
-            if len(co2_emissions) != 4:
-                co2_emissions = [0] * 4  # Ensure the list has the correct length
+            # 섹션별 대기 큐에 대한 보상 계산
+            max_queue_capacity = self.max_queue_capacities.get(int(section_id))
+            print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
+            normalized_queue = traffic_queue / max_queue_capacity
+            section_queue_reward = max(0, 1 - normalized_queue)
 
-            # Queue calculation (fetching the latest value from deque)
-            for section_id, section in self.section_objects.items():
-                _, _, traffic_queue, _ = section.collect_data()
-                self.queue = traffic_queue
-            flattened_queue = self.queue if isinstance(self.queue, list) else list(self.queue)
+            # 가중치를 적용한 섹션별 보상 계산
+            section_reward = (weight_CO2 * section_CO2_reward) + (weight_max_vehicles * section_queue_reward)
+            section_rewards[section_id] = section_reward
 
-            # Combine all parts into one list
-            observation = phase_id + min_green + density + co2_emissions + flattened_queue
+            # 디버깅용 출력
+            print(f"Section {section_id}: CO2 Reward: {section_CO2_reward}, Queue Reward: {section_queue_reward}, Combined Reward: {section_reward}")
 
-            # Ensure the observation has exactly 16 elements
-            if len(observation) < 16:
-                observation.extend([0] * (16 - len(observation)))
+        # 전체 시스템 보상 계산
+        total_reward = sum(section_rewards.values()) / len(section_rewards)  # 평균 보상
 
-            # Convert the observation to a numpy array
-            observation = np.array(observation, dtype=np.float32)
-            return observation
-        except IndexError as e:
-            print(f"IndexError encountered: {e}")
-            return np.zeros(self.observation_space().shape, dtype=np.float32)
+        # 보상 값 확인
+        print(f"Section Rewards: {section_rewards}")
+        print(f"Total System Reward: {total_reward}")
+        print("%%%" * 30)
+
+        # 전체 시스템 보상 반환
+        return total_reward
+    #
+    # def _observation_fn_default(self):
+    #     from observations import DefaultObservationFunction, ObservationFunction
+    #     self.queue = []
+    #     try:
+    #         # Phase ID (assuming green_phase is an integer and num_green_phases is the total number of phases)
+    #         phase_id = [1 if self.green_phase == i else 0 for i in
+    #                     range(min(self.num_green_phases, 15))]  # One-hot encoding
+    #         min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
+    #
+    #         # Density calculation (assumes get_Section_density returns a list of densities)
+    #         density = DefaultObservationFunction.get_Section_density()
+    #
+    #         if density is None:
+    #             density = [0] * 4  # Replace with a list of zeros of the expected length
+    #         print("density_traffic :", density)
+    #         # CO2 Emission calculation
+    #         co2_emissions = []
+    #         for section_id, section in self.section_objects.items():
+    #             section_co2_emission, _, _, _ = section.collect_data()
+    #             co2_emissions.append(section_co2_emission)
+    #         if len(co2_emissions) != 4:
+    #             co2_emissions = [0] * 4  # Ensure the list has the correct length
+    #
+    #         # Queue calculation (fetching the latest value from deque)
+    #         for section_id, section in self.section_objects.items():
+    #             _, _, traffic_queue, _ = section.collect_data()
+    #             self.queue = traffic_queue
+    #         flattened_queue = self.queue if isinstance(self.queue, list) else list(self.queue)
+    #
+    #         # Combine all parts into one list
+    #         observation = phase_id + min_green + density + co2_emissions + flattened_queue
+    #
+    #         # Ensure the observation has exactly 16 elements
+    #         if len(observation) < 16:
+    #             observation.extend([0] * (16 - len(observation)))
+    #
+    #         # Convert the observation to a numpy array
+    #         observation = np.array(observation, dtype=np.float32)
+    #         return observation
+    #     except IndexError as e:
+    #         print(f"IndexError encountered: {e}")
+    #         return np.zeros(self.observation_space().shape, dtype=np.float32)
 
     # def _observation_fn_default(self):
     #     from observations import DefaultObservationFunction, ObservationFunction

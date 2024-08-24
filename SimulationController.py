@@ -6,7 +6,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
 import pyqtgraph as pg
 
-from Infra import Direction
+from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT
+from plotobject import PlotSection, PlotInfra
 from runactuated import RunActuated
 from RunSimulation import RunSimulation, Config_SUMO
 from collections import deque
@@ -31,6 +32,9 @@ class TrafficSimulatorApp(QMainWindow):
 
         self.sectionColor = {}
         self.initSectionColor()
+
+        self.plotlist = []
+
         self.initUI()
 
     def initSectionColor(self):
@@ -41,7 +45,7 @@ class TrafficSimulatorApp(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("Traffic Simulator Visualization")
-        self.setGeometry(100, 100, 1920, 1080)
+        self.setGeometry(0, 0, 1280, 720)
 
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
@@ -60,36 +64,16 @@ class TrafficSimulatorApp(QMainWindow):
         bottom_layout = QHBoxLayout()
 
         if self.DEBUG is not True:
-            # Traffic Lights
-            # self.total_volume = pg.PlotWidget(title="Total Volume")
-            # self.total_volume.plotItem.setLabels(bottom='Time(s)', left="num of veh")
-            # self.total_volume.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-            # self.total_volume.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-            # self.total_volume.setBackground('w')
-            # self.total_volume.setStyleSheet(
-            #     "border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-            # self.total_volume_curve = self.total_volume.plot(pen="g")
-            # signal_layout.addWidget(self.total_volume)
+            #signal_layout.addWidget(sigplot)
+            ps = PlotSection('Section Signal Green Time', 'Time(s)', 'green time', SECTION_RESULT.GREEN_TIME)
+            self.plotlist.append(ps)
+            signal_layout.addWidget(ps.getWidtget())
 
-            self.signalgreenplot = []
+            # signal_layout.addWidget(sigplot)
 
-            sigplot = pg.PlotWidget(title="Section Signal Green Time")
-            sigplot.plotItem.setLabels(bottom='Time(s)', left="green time")
-            sigplot.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-            sigplot.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-            sigplot.setBackground('w')
-            sigplot.plotItem.setYRange(0, 80)
-            y_max = sigplot.plotItem.viewRange()[1][1]
-            sigplot.setStyleSheet(
-                "border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-            for i in range(4):
-                self.signalgreenplot.append(sigplot.plot(pen=self.sectionColor[i][1]))
-                label = pg.TextItem(text='── '+self.sectionColor[i][0]+' ('+self.sectionColor[i][1]+')', color=self.sectionColor[i][1])
-                label.setFont(QFont("Arial", 12))
-                label.setPos(0, y_max-(i*5))
-                sigplot.addItem(label)
-
-            signal_layout.addWidget(sigplot)
+            qs = PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', SECTION_RESULT.TRAFFIC_QUEUE)
+            self.plotlist.append(qs)
+            queue_layout.addWidget(qs.getWidtget())
 
             # Queue graph
             self.queue_graph = pg.PlotWidget(title="Queue")
@@ -99,51 +83,15 @@ class TrafficSimulatorApp(QMainWindow):
             self.queue_graph.setBackground('w')
             self.queue_graph.setYRange(0, 100)
 
-            queue_layout.addWidget(self.queue_graph)
+            #queue_layout.addWidget(self.queue_graph)
 
-            # Emissions graph
-            self.emission_graph = pg.PlotWidget(title="Total Emissions")
-            self.emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
-            self.emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-            self.emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-            self.emission_graph.setBackground('w')
-            self.emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-            self.comp_emission_curve = self.emission_graph.plot(pen="r")
-            self.emission_curve = self.emission_graph.plot(pen="g")
-            emission_layout.addWidget(self.emission_graph)
+            te = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2, self.signalControlType)
+            self.plotlist.append(te)
+            emission_layout.addWidget(te.getWidtget())
 
-            # Emission graph by bound
-            self.bound_emission_graph = pg.PlotWidget(title="Emissions by Bound")
-            self.bound_emission_graph.plotItem.setLabels(bottom='Time(s)', left="Emission(kg)")
-            self.bound_emission_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-            self.bound_emission_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-            self.bound_emission_graph.setBackground('w')
-            self.bound_emission_graph.addLegend()
-            self.bound_emission_graph.setStyleSheet("border: 1px solid black; padding-left:10px; padding-right:10px; background-color: white;")
-            self.Sb_emission_curve = self.bound_emission_graph.plot(pen="r")
-            self.Nb_emission_curve = self.bound_emission_graph.plot(pen="g")
-            self.Eb_emission_curve = self.bound_emission_graph.plot(pen="b")
-            self.Wb_emission_curve = self.bound_emission_graph.plot(pen="c")
-
-            # Y축 범위 설정
-            self.bound_emission_graph.plotItem.setYRange(0, 500)
-
-            # ViewBox 좌표계를 사용하여 라벨을 고정된 위치에 추가
-            vb = self.bound_emission_graph.getPlotItem().getViewBox()
-
-            self.labels = {
-                'SB': pg.TextItem(text='── SB (Red)', color='r'),
-                'NB': pg.TextItem(text='── NB (Blue)', color='g'),
-                'EB': pg.TextItem(text='── EB (Green)', color='b'),
-                'WB': pg.TextItem(text='── WB (Cyan)', color='c')
-            }
-            # 각 라벨의 초기 설정 (한 번만 실행)
-            for key, label in self.labels.items():
-                label.setFont(QFont("Arial", 12))
-                self.bound_emission_graph.addItem(label)
-
-            # 위젯을 레이아웃에 추가
-            emission_layout.addWidget(self.bound_emission_graph)
+            co2 = PlotSection('CO2 Emissions by Bound', 'Time(s)', 'CO2 Emission(kg)', SECTION_RESULT.CO2_EMISSION, ismoving=True)
+            self.plotlist.append(co2)
+            emission_layout.addWidget(co2.getWidtget())
 
         #Select Signal Type
         #label
@@ -188,6 +136,12 @@ class TrafficSimulatorApp(QMainWindow):
         self.onCompDataActivatd(cb_comp.currentData())
         menu1_layout.addWidget(cb_comp)
 
+        extract_savedData = QPushButton("Extract Saved Data")
+        font = extract_savedData.font()
+        font.setPointSize(15)
+        extract_savedData.setFont(font)
+        extract_savedData.clicked.connect(self.extract_savedData)
+        menu1_layout.addWidget(extract_savedData)
         spacer = QSpacerItem(40, 30, QSizePolicy.Expanding, QSizePolicy.Minimum)
         menu1_layout.addItem(spacer)
 
@@ -247,19 +201,21 @@ class TrafficSimulatorApp(QMainWindow):
         self.compData = compstr
         print('comp data selected : ',self.compData)
 
-    def initialize_controller(self):
+    def initialize_controller(self, extract=False):
         print(self.signalControlType)
-        self.controller = self.signalControlType.value[0]()#RunActuated(config=Config_SUMO())
+        if extract is not True:
+            self.controller = self.signalControlType.value[0]()#RunActuated(config=Config_SUMO())
+        else:
+            self.controller = RunSimulation(config=Config_SUMO(), name="Extract Mode", isExtract=True)
         if self.compData is not None:
             self.controller.loadData(self.compData)
 
     def start_simulation(self):
-        if self.controller is None:
-            self.initialize_controller()  # Initialize the controller if it hasn't been initialized
+        self.initialize_controller()  # Initialize the controller if it hasn't been initialized
         self.simulation_thread = SimulationThread(self.controller)
         if self.DEBUG is not True:
             self.simulation_thread.results_signal.connect(self.draw_bar_chart)
-            self.simulation_thread.results_signal.connect(self.update_co2_graph)
+            self.simulation_thread.results_signal.connect(self.update_graph)
         self.simulation_thread.start()
         self.timer.start(100)  # Start the timer to update the GUI every second
 
@@ -268,6 +224,10 @@ class TrafficSimulatorApp(QMainWindow):
             self.controller.terminate()
             self.timer.stop()
 
+    def extract_savedData(self):
+        if self.controller is None:
+            self.initialize_controller(extract=True)
+            self.controller.extract_excel(True)
 
     def extract_button_clicked(self):
         if self.controller:
@@ -297,32 +257,19 @@ class TrafficSimulatorApp(QMainWindow):
         return result
 
     @pyqtSlot(object)
-    def draw_bar_chart(self, section_results):
+    def draw_bar_chart(self, rtinfra: Infra):
         self.bar_x = []
         self.bar_y = []
         #print('length of sections : ', len(section_results), type(section_results))
         labels = dict()
 
         try:
-            section_results = deque(section_results, maxlen=4)
-            for result in section_results:
-                #print('Sid : ', result['Section'], ', Queue : ', result['Section_Queue'])
-                if result['Section'] == '0':
-                    self.bar_x.append(1)
-                    self.bar_y.append(result['traffic_queue'])
-                    labels[1] = result['sectionBound']
-                elif result['Section'] == '1':
-                    self.bar_x.append(2)
-                    self.bar_y.append(result['traffic_queue'])
-                    labels[2] = result['sectionBound']
-                elif result['Section'] == '2':
-                    self.bar_x.append(3)
-                    self.bar_y.append(result['traffic_queue'])
-                    labels[3] = result['sectionBound']
-                elif result['Section'] == '3':
-                    self.bar_x.append(4)
-                    self.bar_y.append(result['traffic_queue'])
-                    labels[4] = result['sectionBound']
+            sections = rtinfra.getSections().values()
+            for i, section in enumerate(sections):
+                self.bar_x.append(i+1)
+                self.bar_y.append(section.getCurrentQueue())
+                labels[i+1] = section.direction.name
+
             self.queue_graph.clear()
             bg = pg.BarGraphItem(x=self.bar_x, height=self.bar_y, width=0.6, brush='y', pen='y')
             self.queue_graph.addItem(bg)
@@ -343,18 +290,15 @@ class TrafficSimulatorApp(QMainWindow):
         except IndexError:
             pass
 
-    @pyqtSlot(object, object, object)
-    def update_co2_graph(self, section_results, total_results, total_result_comp):
-        self.draw_filtered_graph(section_results, total_results, total_result_comp)
+    @pyqtSlot(object, object)
+    def update_graph(self, rtinfra, compare_infra):
+        #self.draw_filtered_graph(rtinfra, total_results, total_result_comp)
 
-    def low_pass_filter(self, data, cutoff=0.2, fs=1.0, order=1):
-        if len(data) <= 9:  # 필터의 padlen보다 작은 경우
-            return data  # 필터링을 건너뛰고 원래 데이터를 반환
-        nyq = 0.5 * fs  # Nyquist Frequency
-        normal_cutoff = cutoff / nyq
-        b, a = butter(order, normal_cutoff, btype='low', analog=False)
-        y = filtfilt(b, a, data, padlen=3)  # padlen 값을 줄여서 설정
-        return y
+        for pl in self.plotlist:
+            pl.update(rtinfra, compare_infra)
+
+
+
 
     def draw_filtered_graph(self, section_results, total_results, total_result_comp):
         # comp Total Emission Graph
@@ -423,8 +367,8 @@ class TrafficSimulatorApp(QMainWindow):
             self.labels['EB'].setPos(max(time_data[-1] - 500, 0), y_max - 50)
             self.labels['WB'].setPos(max(time_data[-1] - 500, 0), y_max - 70)
 
-        for i, sig in enumerate(self.signalgreenplot):
-            sig.setData(sections[str(i)][0], sections[str(i)][2])
+        # for i, sig in enumerate(self.signalgreenplot):
+        #     sig.setData(sections[str(i)][0], sections[str(i)][2])
 
     def update_data(self):
         # Periodically update the data from the simulation
@@ -437,7 +381,7 @@ class TrafficSimulatorApp(QMainWindow):
         event.accept()
 
 class SimulationThread(QThread):
-    results_signal = pyqtSignal(object,object, object)
+    results_signal = pyqtSignal(object,object)
 
     def __init__(self, controller):
         super().__init__()
@@ -448,9 +392,8 @@ class SimulationThread(QThread):
 
     def emit_results(self):
         self.results_signal.emit(
-            self.controller.section_results,
-            self.controller.total_results,
-            self.controller.total_results_comp
+            self.controller.rtInfra,
+            self.controller.compareInfra
         )
 
 def my_exception_hook(exctype, value, traceback):

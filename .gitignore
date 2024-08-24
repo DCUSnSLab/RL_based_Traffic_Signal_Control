@@ -1,7 +1,8 @@
 __pycache__
-
+output
 .idea
 .xlsx
+New_TestWay/*.zip
 *.xlsx
 *.data
 Eb.xml
