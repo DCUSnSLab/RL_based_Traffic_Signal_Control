@@ -136,6 +136,12 @@ class TrafficSimulatorApp(QMainWindow):
         self.onCompDataActivatd(cb_comp.currentData())
         menu1_layout.addWidget(cb_comp)
 
+        extract_savedData = QPushButton("Extract Saved Data")
+        font = extract_savedData.font()
+        font.setPointSize(15)
+        extract_savedData.setFont(font)
+        extract_savedData.clicked.connect(self.extract_savedData)
+        menu1_layout.addWidget(extract_savedData)
         spacer = QSpacerItem(40, 30, QSizePolicy.Expanding, QSizePolicy.Minimum)
         menu1_layout.addItem(spacer)
 
@@ -195,15 +201,17 @@ class TrafficSimulatorApp(QMainWindow):
         self.compData = compstr
         print('comp data selected : ',self.compData)
 
-    def initialize_controller(self):
+    def initialize_controller(self, extract=False):
         print(self.signalControlType)
-        self.controller = self.signalControlType.value[0]()#RunActuated(config=Config_SUMO())
+        if extract is not True:
+            self.controller = self.signalControlType.value[0]()#RunActuated(config=Config_SUMO())
+        else:
+            self.controller = RunSimulation(config=Config_SUMO(), name="Extract Mode", isExtract=True)
         if self.compData is not None:
             self.controller.loadData(self.compData)
 
     def start_simulation(self):
-        if self.controller is None:
-            self.initialize_controller()  # Initialize the controller if it hasn't been initialized
+        self.initialize_controller()  # Initialize the controller if it hasn't been initialized
         self.simulation_thread = SimulationThread(self.controller)
         if self.DEBUG is not True:
             self.simulation_thread.results_signal.connect(self.draw_bar_chart)
@@ -216,6 +224,10 @@ class TrafficSimulatorApp(QMainWindow):
             self.controller.terminate()
             self.timer.stop()
 
+    def extract_savedData(self):
+        if self.controller is None:
+            self.initialize_controller(extract=True)
+            self.controller.extract_excel(True)
 
     def extract_button_clicked(self):
         if self.controller:
