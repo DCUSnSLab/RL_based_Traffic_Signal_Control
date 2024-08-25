@@ -1,3 +1,6 @@
+import random
+from typing import List
+
 import numpy as np
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import *
@@ -10,7 +13,7 @@ from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT
 
 
 class PlotObject():
-    def __init__(self, title, l_bottom, l_left, ismoving=False):
+    def __init__(self, title, l_bottom, l_left, compInfra: List[Infra]=None, ismoving=False):
         self.__title = title
         self.__label_bottom = l_bottom
         self.__label_left = l_left
@@ -19,6 +22,7 @@ class PlotObject():
         self._plotwidget: PlotWidget = None
         self._plots = []
         self._labels = []
+        self._compInfra: List[Infra] = compInfra
 
         self.colorset = ('r', 'g', 'b', 'c') #SB, NB, EB, WB
         self.__ymax = 0
@@ -27,7 +31,7 @@ class PlotObject():
 
         #data
         self.rtinfra: Infra = None
-        self.compare_infra: Infra = None
+        self.compare_infra: List[Infra] = None
 
     def __initUI(self):
         self._plotwidget = pg.PlotWidget(title=self.__title)
@@ -55,8 +59,9 @@ class PlotObject():
     def addPlot(self, name='default', color='black'):
         self._plots.append(self._plotwidget.plot(pen=color))
 
+        color_str = f"RGB{color}"
         #add label
-        label = pg.TextItem(text='── ' + name + ' (' + color + ')',color=color)
+        label = pg.TextItem(text='── ' + name + ' (' + color_str + ')',color=color)
         label.setFont(QFont("Arial", 12))
         self._plotwidget.addItem(label)
         self._labels.append(label)
@@ -80,11 +85,18 @@ class PlotObject():
     def updatePlot(self):
         pass
 
-    def update(self, rtinfra, compare_infra):
+    def update(self, rtinfra, compare_infras):
         self.rtinfra = rtinfra
-        self.compare_infra = compare_infra
+        self.compare_infra = compare_infras
         self.updateLabels()
         self.updatePlot()
+
+    def generate_random_color(self):
+        # 0에서 255 사이의 랜덤한 RGB 값을 생성
+        r = random.randint(0, 255)
+        g = random.randint(0, 255)
+        b = random.randint(0, 255)
+        return (r, g, b)
 
 
 
@@ -120,34 +132,38 @@ class PlotSection(PlotObject):
             plot.setData(time_data, data)
 
         if self._isMoving is True:
-
             self._plotwidget.plotItem.setXRange(max(time_data[-1] - 500, 0), time_data[-1])
             self.updateLabels(max(time_data[-1] - 500, 0))
 
 class PlotInfra(PlotObject):
-    def __init__(self, title, l_bottom, l_left, sel_data, selType, compType=None, ismoving=False):
-        super().__init__(title, l_bottom, l_left, ismoving)
+    def __init__(self, title, l_bottom, l_left, sel_data, selType, compinfra=None, ismoving=False):
+        super().__init__(title, l_bottom, l_left, compinfra, ismoving)
         self.__sel_data: TOTAL_RESULT = sel_data
-        self.__compType = compType
-        #if self.__compType is None:
-        self.addPlot('Legacy', 'b')
-
         self.__selType = selType
+        self.colorset = ('g','b','c')
+        if self._compInfra is not None:
+            for i, ci in enumerate(self._compInfra):
+                color = 'b'
+                if i < 3:
+                    color = self.colorset[i]
+                else:
+                    color = self.generate_random_color()
+                self.addPlot(ci.sigType+'_'+ci.getSavedTime().strftime("%Y-%m-%d"), color)
+
         self.addPlot('Proposed', 'r')
 
     def updatePlot(self):
         time_data = self.rtinfra.getTime()
         data = self.rtinfra.getDatabyID(self.__sel_data)
-        comptime = 0
-        compinfra = 0
-        if self.compare_infra is not None:
-            comptime = self.compare_infra.getTime()
-            compinfra = self.compare_infra.getDatabyID(self.__sel_data) if self.compare_infra is not None else 0
-
         if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
             data = np.array(data) / 1000
-            compinfra = np.array(compinfra) / 1000
+        self._plots[-1].setData(time_data, data)
 
-        self._plots[1].setData(time_data, data)
-        if self.compare_infra is not None:
-            self._plots[0].setData(comptime, compinfra)
+        if self._compInfra is not None:
+            for i, ci in enumerate(self._compInfra):
+                comptime = ci.getTime()
+                compinfra = ci.getDatabyID(self.__sel_data) if ci is not None else 0
+
+                if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
+                    compinfra = np.array(compinfra) / 1000
+                self._plots[i].setData(comptime, compinfra)

@@ -7,6 +7,15 @@ import traci
 import math
 from traci import TraCIException
 
+class Config_SUMO:
+    # SUMO Configuration File
+    sumocfg_path = "New_TestWay/test_cfg.sumocfg"
+    # SUMO Scenario File Path
+    scenario_path = "New_TestWay"
+    # SUMO Scenario File(.add.xml)
+    scenario_file = "new_test.add.xml"
+
+    sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
 class Direction(Enum):
     SB = (0, 4)
@@ -507,6 +516,9 @@ class Infra:
 
     def getFileName(self):
         return self.__savefileName
+
+    def getSavedTime(self):
+        return self.__savedTime
 
     def setCurrentTime(self):
         self.__savedTime = datetime.now()

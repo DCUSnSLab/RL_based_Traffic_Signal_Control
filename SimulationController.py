@@ -3,16 +3,18 @@ import sys
 from datetime import datetime
 
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot, Qt
 import pyqtgraph as pg
 
-from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT
+from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT, Config_SUMO
 from plotobject import PlotSection, PlotInfra
 from runactuated import RunActuated
-from RunSimulation import RunSimulation, Config_SUMO
+from RunSimulation import RunSimulation
 from collections import deque
 from PyQt5.QtGui import QFont
 from scipy.signal import butter, filtfilt
+
+from runemulator import RunEmulator
 from signaltype import SignalMode
 
 from typing import List, Tuple
@@ -28,12 +30,13 @@ class TrafficSimulatorApp(QMainWindow):
 
         #signalControl Mode
         self.signalControlType = None
-        self.compData: str = None
+        self.compData: List[str] = list()
+        self.comparedInfras: List[Infra] = None
 
         self.sectionColor = {}
         self.initSectionColor()
 
-        self.plotlist = []
+        self.plotlist = dict()
 
         self.initUI()
 
@@ -61,18 +64,19 @@ class TrafficSimulatorApp(QMainWindow):
         state_layout.addLayout(signal_layout)
         state_layout.addLayout(queue_layout)
         emission_layout = QHBoxLayout()
+        self.emit1 = QHBoxLayout()
         bottom_layout = QHBoxLayout()
 
         if self.DEBUG is not True:
             #signal_layout.addWidget(sigplot)
             ps = PlotSection('Section Signal Green Time', 'Time(s)', 'green time', SECTION_RESULT.GREEN_TIME)
-            self.plotlist.append(ps)
+            self.plotlist['greentime'] = ps
             signal_layout.addWidget(ps.getWidtget())
 
             # signal_layout.addWidget(sigplot)
 
             qs = PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', SECTION_RESULT.TRAFFIC_QUEUE)
-            self.plotlist.append(qs)
+            self.plotlist['queue'] = qs
             queue_layout.addWidget(qs.getWidtget())
 
             # Queue graph
@@ -85,12 +89,14 @@ class TrafficSimulatorApp(QMainWindow):
 
             #queue_layout.addWidget(self.queue_graph)
 
-            te = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2, self.signalControlType)
-            self.plotlist.append(te)
-            emission_layout.addWidget(te.getWidtget())
+            self.totalte = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2, self.signalControlType)
+            self.plotlist['totalco2'] = self.totalte
+            self.emit1.addWidget(self.totalte.getWidtget())
+            emission_layout.addLayout(self.emit1)
+
 
             co2 = PlotSection('CO2 Emissions by Bound', 'Time(s)', 'CO2 Emission(kg)', SECTION_RESULT.CO2_EMISSION, ismoving=True)
-            self.plotlist.append(co2)
+            self.plotlist['co2bound'] = co2
             emission_layout.addWidget(co2.getWidtget())
 
         #Select Signal Type
@@ -123,18 +129,28 @@ class TrafficSimulatorApp(QMainWindow):
         lb_comp.setText("  Select Comparing Data: ")
         menu1_layout.addWidget(lb_comp)
         # Combobox
-        cb_comp = QComboBox(self)
-        font = cb_comp.font()
-        font.setPointSize(15)
-        cb_comp.setFont(font)
+        self.list_widget = QListWidget(self)
+        self.list_widget.setSelectionMode(QListWidget.MultiSelection)  # 다중 선택 가능
+        font = self.list_widget.font()
+        font.setPointSize(12)
+        self.list_widget.setFont(font)
+        self.list_widget.setFixedWidth(500)
 
-        cb_comp.addItem("No Comparison", None)
+        item = QListWidgetItem("No Comparison")
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)  # 체크 가능하게 설정
+        item.setCheckState(Qt.Unchecked)
+        self.list_widget.addItem(item)
+
+        # 파일 리스트 항목 추가
         for orin, fn in self.getSavedFileList():
-            cb_comp.addItem(fn, orin)
-        cb_comp.activated.connect(lambda: self.onCompDataActivatd(cb_comp.currentData()))
-        cb_comp.setCurrentIndex(0)
-        self.onCompDataActivatd(cb_comp.currentData())
-        menu1_layout.addWidget(cb_comp)
+            item = QListWidgetItem(fn)
+            item.setData(Qt.UserRole, orin)  # orin 값을 사용자 데이터로 저장
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.list_widget.addItem(item)
+
+        self.list_widget.itemClicked.connect(self.on_item_clicked)
+        menu1_layout.addWidget(self.list_widget)
 
         extract_savedData = QPushButton("Extract Saved Data")
         font = extract_savedData.font()
@@ -197,9 +213,21 @@ class TrafficSimulatorApp(QMainWindow):
         self.signalControlType = SignalMode.from_string(typestr)
         print('selected Signal Control Mode : ',self.signalControlType.value[1])
 
-    def onCompDataActivatd(self, compstr):
-        self.compData = compstr
-        print('comp data selected : ',self.compData)
+    def on_item_clicked(self, item):
+        if item.checkState() == Qt.Checked:
+            item.setCheckState(Qt.Unchecked)
+        else:
+            item.setCheckState(Qt.Checked)
+
+        self.on_selection_changed()
+
+    def on_selection_changed(self):
+        self.compData.clear()
+        for index in range(self.list_widget.count()):
+            item = self.list_widget.item(index)
+            if item.checkState() == Qt.Checked:
+                self.compData.append(item.data(Qt.UserRole))
+        print("Selected data:", self.compData)
 
     def initialize_controller(self, extract=False):
         print(self.signalControlType)
@@ -208,7 +236,17 @@ class TrafficSimulatorApp(QMainWindow):
         else:
             self.controller = RunSimulation(config=Config_SUMO(), name="Extract Mode", isExtract=True)
         if self.compData is not None:
-            self.controller.loadData(self.compData)
+            emul = RunEmulator(self.compData)
+            self.comparedInfras = emul.getInfras()
+
+            self.emit1.removeWidget(self.totalte.getWidtget())
+            self.totalte.getWidtget().deleteLater()
+            self.totalte = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2,
+                           self.signalControlType, self.comparedInfras)
+            self.plotlist['totalco2'] = self.totalte
+
+            self.emit1.addWidget(self.totalte.getWidtget())
+
 
     def start_simulation(self):
         self.initialize_controller()  # Initialize the controller if it hasn't been initialized
@@ -290,12 +328,13 @@ class TrafficSimulatorApp(QMainWindow):
         except IndexError:
             pass
 
-    @pyqtSlot(object, object)
-    def update_graph(self, rtinfra, compare_infra):
+    @pyqtSlot(object)
+    def update_graph(self, rtinfra):
         #self.draw_filtered_graph(rtinfra, total_results, total_result_comp)
 
-        for pl in self.plotlist:
-            pl.update(rtinfra, compare_infra)
+        for pl in self.plotlist.values():
+            pl.update(rtinfra, self.comparedInfras)
+
 
     def draw_filtered_graph(self, section_results, total_results, total_result_comp):
         # comp Total Emission Graph
@@ -378,7 +417,7 @@ class TrafficSimulatorApp(QMainWindow):
         event.accept()
 
 class SimulationThread(QThread):
-    results_signal = pyqtSignal(object,object)
+    results_signal = pyqtSignal(object)
 
     def __init__(self, controller):
         super().__init__()
@@ -389,8 +428,7 @@ class SimulationThread(QThread):
 
     def emit_results(self):
         self.results_signal.emit(
-            self.controller.rtInfra,
-            self.controller.compareInfra
+            self.controller.getInfra(),
         )
 
 def my_exception_hook(exctype, value, traceback):

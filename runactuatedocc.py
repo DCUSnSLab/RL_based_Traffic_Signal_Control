@@ -24,7 +24,7 @@ class RunActuatedOCC(RunSimulation):
         remaining_time = next_switch_time - current_simulation_time
 
         if current_phase_index == num_phases-1 and remaining_time == 0:
-            self.traffic_signal_control(self.rtInfra.getSections(), self.cycle_time, self.total_yellow_time)
+            self.traffic_signal_control(self._rtinfra.getSections(), self.cycle_time, self.total_yellow_time)
             # green_times, surplus_rates, waiting_times = traffic_signal_control(self.section_objects, self.cycle_time, self.total_yellow_time)
             # print(f"Simulation step {step}: Green times: {green_times}, Surplus rates: {surplus_rates}, Waiting times: {waiting_times}")
 
