@@ -1,7 +1,8 @@
 from enum import Enum
 
+from Infra import Config_SUMO
 from runactuated import RunActuated
-from RunSimulation import RunSimulation, Config_SUMO
+from RunSimulation import RunSimulation
 from runactuatedocc import RunActuatedOCC
 from rundilemazone import RunDilemaZone
 from runrlbased import RunRLBased
