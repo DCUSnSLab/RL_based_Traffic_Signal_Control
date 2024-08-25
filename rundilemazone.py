@@ -45,7 +45,7 @@ class RunDilemaZone(RunSimulation):
 
         MaxGreenTime = MinGreenTime + 10
 
-        for section_id, section in self.rtInfra.getSections().items():
+        for section_id, section in self.getInfra().getSections().items():
             if bound == "yellow":
                 pass
             else:
