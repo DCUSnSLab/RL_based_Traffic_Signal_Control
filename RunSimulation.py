@@ -7,8 +7,6 @@ import traci
 import pandas as pd
 from collections import deque
 from Infra import SDetector, SStation, SSection, DDetector, Infra, SECTION_RESULT
-
-
 class Config_SUMO:
     # SUMO Configuration File
     sumocfg_path = "New_TestWay/test_cfg.sumocfg"
@@ -184,17 +182,16 @@ class RunSimulation:
         pass
 
     def run_simulation(self):
+        check = 0
         print('---- start Simulation (signController : ',self.sigTypeName, ") ----")
         step = 0
         self.isStop = False
-
+        # while not self.isStop and step <= 100:
         while not self.isStop and step <= 11700:
             #start_time = time.time()
             traci.simulationStep()
-
             #set logic every step
             self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
-
             self._signalControl()
 
             # print('Green times: ', end='')

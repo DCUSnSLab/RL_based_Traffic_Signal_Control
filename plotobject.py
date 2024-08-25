@@ -120,6 +120,7 @@ class PlotSection(PlotObject):
             plot.setData(time_data, data)
 
         if self._isMoving is True:
+
             self._plotwidget.plotItem.setXRange(max(time_data[-1] - 500, 0), time_data[-1])
             self.updateLabels(max(time_data[-1] - 500, 0))
 

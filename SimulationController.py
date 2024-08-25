@@ -297,9 +297,6 @@ class TrafficSimulatorApp(QMainWindow):
         for pl in self.plotlist:
             pl.update(rtinfra, compare_infra)
 
-
-
-
     def draw_filtered_graph(self, section_results, total_results, total_result_comp):
         # comp Total Emission Graph
         cx = [result['Time'] for result in total_result_comp]
