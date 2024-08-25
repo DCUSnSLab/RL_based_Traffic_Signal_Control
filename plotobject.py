@@ -137,8 +137,11 @@ class PlotInfra(PlotObject):
     def updatePlot(self):
         time_data = self.rtinfra.getTime()
         data = self.rtinfra.getDatabyID(self.__sel_data)
-        comptime = self.compare_infra.getTime()
-        compinfra = self.compare_infra.getDatabyID(self.__sel_data) if self.compare_infra is not None else 0
+        comptime = 0
+        compinfra = 0
+        if self.compare_infra is not None:
+            comptime = self.compare_infra.getTime()
+            compinfra = self.compare_infra.getDatabyID(self.__sel_data) if self.compare_infra is not None else 0
 
         if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
             data = np.array(data) / 1000

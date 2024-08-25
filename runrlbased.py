@@ -12,13 +12,13 @@ class RunRLBased(RunSimulation):
         self.model_state = False
         self.is_yellow = False
         self.green_phase = 0
-        self.delta_time = 1
+        self.delta_time = 5
         self.begin_time = 0
         self.next_action_time = 0
         self.green_phases = []
         self.yellow_dict = {}
         self.all_phases = self.green_phases.copy()
-        self.yellow_time = 4
+        self.yellow_time = 5
         self.min_green = 32
         self.max_green = 60
         self.time_since_last_phase_change = 0
@@ -27,18 +27,27 @@ class RunRLBased(RunSimulation):
         if not self.ts_ids:
             raise ValueError("No traffic light IDs found in the SUMO network. Check your SUMO network file.")
 
-        self.id = self.ts_ids[0] if self.ts_ids else None
-        if self.id:
-            self._build_phases()  # 신호등 단계 초기화
-        self.max_queue_capacities = {
-            0: 107,  # 섹션 0의 최대 대기 차량 수
-            1: 88,  # 섹션 1의 최대 대기 차량 수
-            2: 126,  # 섹션 2의 최대 대기 차량 수
-            3: 119,  # 섹션 3의 최대 대기 차량 수
-        }
+        # self.id = self.ts_ids[0] if self.ts_ids else None
+        # if self.id:
+        #     self._build_phases()  # 신호등 단계 초기화
 
+        self.id = self.ts_ids[0]
+        self._build_phases()
+
+        self.max_queue_capacities = {
+            "0": 107,  # 섹션 0의 최대 대기 차량 수
+            "1": 88,  # 섹션 1의 최대 대기 차량 수
+            "2": 126,  # 섹션 2의 최대 대기 차량 수
+            "3": 119,  # 섹션 3의 최대 대기 차량 수
+        }
+        self.max_CO2_emissions = {
+            '0': 318,  # 섹션 0의 CO2 최대 배출량
+            '1': 394,  # 섹션 1의 CO2 최대 배출량
+            '2': 297,  # 섹션 2의 CO2 최대 배출량
+            '3': 242,  # 섹션 3의 CO2 최대 배출량
+        }
     def model_load(self):
-        model_path = "New_TestWay/final_model_ep100"
+        model_path = "New_TestWay/RL_Based_ep100"
         self.model = DQN.load(model_path)
         print("Model loaded")
         self.model_state = True
@@ -54,11 +63,10 @@ class RunRLBased(RunSimulation):
         q_values = self.compute_q_values(observation)  # Compute Q-values
 
         action, _ = self.model.predict(observation, deterministic=False)  # Choose action based on policy
-        # print(f"action: {action}")
+        # action = np.argmax(q_values)
+        print(f"action: {action}")
 
         self.traffic_step(action)
-        # self._run_steps()
-        # print("-" * 30)
     # def observation_space(self) -> spaces.Box:
     #     """Return the observation space based on the Section data."""
     #     if not self.rtInfra.getSections():
@@ -97,14 +105,14 @@ class RunRLBased(RunSimulation):
 
         for section_id, section in self.rtInfra.getSections().items():
             co2, volume, traffic_queue, green_time = section.collect_data()
-
+            # print("traffic_queue:", traffic_queue)
             # 데이터 출력
             # print(f"collect_data : {co2}, {volume}, {traffic_queue}, {green_time}")
             # print(f"get_Section_density_traffic_queue for section {section_id}: {traffic_queue}")
 
             # 각 섹션의 최대 대기 차량 수를 가져옵니다
-            max_queue_capacity = self.max_queue_capacities.get(section_id, 50)  # 기본값 50 설정
-
+            max_queue_capacity = self.max_queue_capacities.get(section_id, 100)
+            # print(f"Max Queue Capacity for section {section_id}: {max_queue_capacity}")
             if max_queue_capacity > 0:
                 # 밀도 계산
                 density = min(1, traffic_queue / max_queue_capacity)
@@ -121,90 +129,83 @@ class RunRLBased(RunSimulation):
 
         return densities
 
-
-    # def compute_observation(self, section):
-    #     """Compute the observation for a given section."""
-    #     try:
-    #         # Phase ID (assuming green_phase is an integer and num_green_phases is the total number of phases)
-    #         phase_id = [1 if self.green_phase == i else 0 for i in range(self.num_green_phases)]
-    #         print("phase_id: ", phase_id)
-    #         # Minimum green time flag (assuming time_since_last_phase_change and min_green are integers)
-    #         min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
-    #         print("min_green: ", min_green)
-    #         # Density calculation (assumes get_Section_density returns a list of densities)
-    #         density = self.get_Section_density()
-    #         # Queue calculation (fetching the latest value from deque)
-    #         queue = section.__section_queues[-1] if len(section.__section_queues) > 0 else 0
-    #         # Create the observation array
-    #         observation = np.array(phase_id + min_green + density + [queue], dtype=np.float32)
-    #         # Store the observation in the dictionary
-    #         self.observations[section.id] = observation
-    #
-    #         return observation
-    #     except IndexError as e:
-    #         print(f"IndexError encountered: {e}")
-    #         return np.zeros(self.observation_space().shape, dtype=np.float32)
-
-    def pad_observation(self, observation, desired_size):
-        """Pad the observation to the desired size."""
-        if len(observation) < desired_size:
-            # 데이터가 필요한 크기보다 작으면, 0으로 패딩합니다.
-            return np.pad(observation, (0, desired_size - len(observation)), mode='constant')
-        elif len(observation) > desired_size:
-            # 데이터가 필요한 크기보다 크면, 잘라냅니다.
-            return observation[:desired_size]
-        return observation  # 이미 크기가 정확하다면 그대로 반환
-
+    # def compute_observation(self):
+        # """Compute the observation for a given section."""
+        # self.queue = []
+        # try:
+        #     # Phase ID
+        #     phase_id = [1 if self.green_phase == i else 0 for i in range(self.num_green_phases)]
+        #     # print("phase_id: ", phase_id)
+        #     # Minimum green time flag
+        #     min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
+        #     # print("min_green: ", min_green)
+        #     # Density
+        #     density = self.get_Section_density()
+        #     # print("density: ", density)
+        #     # Check density length and pad if necessary
+        #     desired_density_length = 4
+        #     if len(density) < desired_density_length:
+        #         density = density + [0] * (desired_density_length - len(density))
+        #         # print("len(density) < desired_density_length: ", density)
+        #     elif len(density) > desired_density_length:
+        #         density = density[:desired_density_length]
+        #         # print("len(density) > desired_density_length: ", density)
+        #     # Queue calculation (adjust this line according to the actual method or attribute)
+        #
+        #     for section_id, section in self.rtInfra.getSections().items():
+        #         co2, volume, traffic_queue, green_time = section.collect_data()
+        #         self.queue = traffic_queue
+        #     # print("queue: ", self.queue)
+        #     # Create the observation array
+        #     observation = np.array(phase_id + min_green + density + [self.queue], dtype=np.float32)
+        #     # print("observation: ", observation)
+        #     # Padding to ensure the observation size is 35
+        #     desired_size = 16
+        #     if len(observation) < desired_size:
+        #         observation = np.pad(observation, (0, desired_size - len(observation)), mode='constant')
+        #         # print("len(observation) < desired_size: ", observation)
+        #     elif len(observation) > desired_size:
+        #         observation = observation[:desired_size]
+        #         # print("len(observation) > desired_size: ", observation)
+        #     # for section_id, section in self.rtInfra.getSections().items():
+        #     #     self.observations[section_id] = observation
+        #     #     print("self.observations[section_id] = observation: ", self.observations[section_id])
+        #     return observation
+        # except IndexError as e:
+        #     print(f"IndexError encountered: {e}")
+        #     return np.zeros(self.observation_space().shape, dtype=np.float32)
     def compute_observation(self):
-        """Compute the observation for a given section."""
-        queues = []  # 각 섹션의 큐 데이터를 저장할 리스트
+        self.queue = []
+        self.co2_emissions = []
+        self.queue_density = []
+        self.co2_density = []
+        # Phase ID (assuming green_phase is an integer and num_green_phases is the total number of phases)
+        phase_id = [1 if self.green_phase == i else 0 for i in
+                    range(min(self.num_green_phases, 15))]  # One-hot encoding
+        min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
+        for section_id, section in self.rtInfra.getSections().items():
+            section_co2_emission, _, traffic_queue, _ = section.collect_data()
+            max_CO2_emission = self.max_CO2_emissions.get(section_id)
+            # print(f"Section {section_id}- co2: {section_co2_emission}, max_co2: {max_CO2_emission}")
+            normalized_co2 = section_co2_emission / max_CO2_emission
+            self.co2_density.append(max(0, 1 - normalized_co2))
+            # print(f"Section {section_id}- nomalized_co2: {self.co2_density}")
 
-        try:
-            # Phase ID
-            phase_id = [1 if self.green_phase == i else 0 for i in range(self.num_green_phases)]
-            # Minimum green time flag
-            min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
-            # Density
-            density = self.get_Section_density()
+            max_queue_capacity = self.max_queue_capacities.get(section_id)
+            # print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
+            normalized_queue = traffic_queue / max_queue_capacity
+            self.queue_density.append(max(0, 1 - normalized_queue))
+            # print(f"Section {section_id}- nomalized_queue: {self.queue_density}")
+            # print("co2_emissions:", self.co2_emissions)
+        observation = phase_id + min_green + self.co2_density + self.queue_density
+        # observation = phase_id + min_green + self.co2_emissions + self.queue
+        # print("pre_observation: ", observation)
+        if len(observation) < 16:
+            observation.extend([0] * (16 - len(observation)))
 
-            # Check density length and pad if necessary
-            desired_density_length = 4
-            if len(density) < desired_density_length:
-                density = density + [0] * (desired_density_length - len(density))
-            elif len(density) > desired_density_length:
-                density = density[:desired_density_length]
-
-            # 각 섹션의 데이터를 수집하여 큐 데이터 리스트에 저장
-            for section_id, section in self.rtInfra.getSections().items():
-                co2, volume, traffic_queue, green_time = section.collect_data()
-                queues.append(traffic_queue)
-
-            # 큐 리스트가 비어있는 경우 0으로 채움
-            if not queues:
-                queues = [0] * desired_density_length
-
-            # 필요한 경우 패딩 적용
-            if len(queues) < desired_density_length:
-                queues = queues + [0] * (desired_density_length - len(queues))
-            elif len(queues) > desired_density_length:
-                queues = queues[:desired_density_length]
-
-            # Observation 벡터 생성 (phase_id, min_green, density, queues 결합)
-            observation = np.array(phase_id + min_green + density + queues, dtype=np.float32)
-
-            # Padding to ensure the observation size is 16 (or any desired size)
-            desired_size = 16
-            observation = self.pad_observation(observation, desired_size)
-
-            return observation
-
-        except IndexError as e:
-            print(f"IndexError encountered: {e}")
-            return np.zeros(self.observation_space().shape, dtype=np.float32)
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            return np.zeros(self.observation_space().shape, dtype=np.float32)
-
+        observation = np.array(observation, dtype=np.float32)
+        # print("observation: ", observation)
+        return observation
     def _get_num_phases(self, ts_id):
         """Return the number of phases for a given traffic signal ID."""
         return len(self.sumo.trafficlight.getRedYellowGreenState(ts_id))  # 신호 상태 문자열 길이를 통해 단계 수 반환
@@ -222,11 +223,17 @@ class RunRLBased(RunSimulation):
         self._apply_actions(action)
         self._run_steps()
 
+    # def _apply_actions(self, actions):
+    #     """Apply traffic signal actions."""
+    #     # print("actions :", actions)
+    #     if self.time_to_act:
+    #         self.set_next_phase(actions)
+
     def _apply_actions(self, actions):
         """Apply traffic signal actions."""
-        # print("actions :", actions)
         if self.time_to_act:
             self.set_next_phase(actions)
+            self.traffic_update()
 
     def time_to_act(self):
         """Returns True if the traffic signal should act in the current step."""
@@ -238,6 +245,10 @@ class RunRLBased(RunSimulation):
         while not time_to_act:
             self.sumo.simulationStep()
             self.traffic_update()
+            # print("%" * 50)
+            # logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
+            # print(logic)
+            # print("%" * 50)
             if self.check_time_to_act():
                 time_to_act = True
 
@@ -251,33 +262,26 @@ class RunRLBased(RunSimulation):
         new_phase = int(new_phase)
         # print(f"Attempting to set new phase: {new_phase}")
         if self.green_phase == new_phase or self.time_since_last_phase_change < self.yellow_time + self.min_green:
-            # print(f"Currently green phase: {self.green_phase}")
+            print(f"Currently green phase: {self.green_phase}")
             # print(f"time_since_last_phase_change: ", self.time_since_last_phase_change,  "self.yellow_time", self.yellow_time, "self.min_green", self.min_green)
-            if self.green_phase >= len(self.all_phases):
-                # print(f"Error: Current green_phase {self.green_phase} is out of range.")
-                return
-            tls_id = self.ts_ids[0] if self.ts_ids else None
-            if tls_id is None:
-                return
-            # print(f"Setting traffic light ID {tls_id} to state {self.all_phases[self.green_phase].state}")
-            self.sumo.trafficlight.setRedYellowGreenState(tls_id, self.all_phases[self.green_phase].state)
-            self.next_action_time = self.sumo.simulation.getTime() + self.delta_time
 
+            # print(f"Setting traffic light ID {tls_id} to state {self.all_phases[self.green_phase].state}")
+            self.sumo.trafficlight.setRedYellowGreenState(self.id, self.all_phases[self.green_phase].state)
+            self.next_action_time = self.sumo.simulation.getTime() + self.delta_time
         else:
-            yellow_index = self.yellow_dict.get((self.green_phase, new_phase), None)
-            if yellow_index is None or yellow_index >= len(self.all_phases):
-                return
-            tls_id = self.ts_ids[0] if self.ts_ids else None
-            if tls_id is None:
-                return
+
             self.sumo.trafficlight.setRedYellowGreenState(
-                tls_id, self.all_phases[yellow_index].state
+                self.id, self.all_phases[self.yellow_dict[(self.green_phase, new_phase)]].state
             )
             self.green_phase = new_phase
             self.next_action_time = self.sumo.simulation.getTime() + self.delta_time
             self.is_yellow = True
             self.time_since_last_phase_change = 0
             # print(f"Updated green phase to {self.green_phase}, next action time set to {self.next_action_time}")
+        print("*" * 50)
+        print("next action time: ", self.next_action_time)
+        print("time since last phase change", self.time_since_last_phase_change)
+        print("*" * 50)
 
     def _build_phases(self):
         """Initialize the traffic light phases."""
@@ -319,5 +323,6 @@ class RunRLBased(RunSimulation):
             # predict returns action and q_values (for DQN models)
             action, q_values = self.model.predict(observation, deterministic=False)
             q_values = self.model.q_net(observation).numpy().flatten()  # Use q_net to get Q-values directly
-        print("Q-values:", q_values)  # Print Q-values for debugging
+        # print("Q-values:", q_values)  # Print Q-values for debugging
+        # print("action: ", action)
         return q_values
