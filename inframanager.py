@@ -35,7 +35,7 @@ class InfraManager():
         append_result = section_results.append
         file_name = ""
         if saveCompare is False:
-            data = self.rtInfra
+            data = self.getInfra()
         else:
             data = self.compareInfra
             file_name = 'extract_'
