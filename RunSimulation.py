@@ -15,6 +15,7 @@ class RunSimulation(InfraManager):
         self.traffic_light_id = "TLS_0"
         self.isStop = True
 
+        self.original_logic = None
         self.logic = None
         self._rtinfra = self.getInfra()
 
@@ -112,7 +113,7 @@ class RunSimulation(InfraManager):
             self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
             self._signalControl()
-
+            self._refreshSignalPhase()
             # print('Green times: ', end='')
 
             self._rtinfra.update()

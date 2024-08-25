@@ -155,6 +155,7 @@ class PlotInfra(PlotObject):
     def updatePlot(self):
         time_data = self.rtinfra.getTime()
         data = self.rtinfra.getDatabyID(self.__sel_data)
+
         if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
             data = np.array(data) / 1000
         self._plots[-1].setData(time_data, data)
