@@ -135,11 +135,7 @@ class TrafficSimulatorApp(QMainWindow):
         font.setPointSize(12)
         self.list_widget.setFont(font)
         self.list_widget.setFixedWidth(500)
-
-        item = QListWidgetItem("No Comparison")
-        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)  # 체크 가능하게 설정
-        item.setCheckState(Qt.Unchecked)
-        self.list_widget.addItem(item)
+        self.list_widget.setFixedHeight(100)
 
         # 파일 리스트 항목 추가
         for orin, fn in self.getSavedFileList():
@@ -273,13 +269,31 @@ class TrafficSimulatorApp(QMainWindow):
 
     def saveData_button_clicked(self):
         if self.controller:
-            self.controller.saveData()
+            default_filename = 'FileName'
+
+            dialog = QInputDialog(self)
+            dialog.setWindowTitle('Save Data')
+            dialog.setLabelText('Enter file name:')
+            dialog.setTextValue(default_filename)
+
+            # 다이얼로그 크기 조정
+            dialog.resize(400, 200)
+            # 폰트 설정
+            font = QFont()
+            font.setPointSize(13)
+            dialog.setFont(font)
+
+            if dialog.exec_() == QInputDialog.Accepted:
+                filename = dialog.textValue()
+                if filename:  # 사용자가 파일 이름을 입력하고 확인을 눌렀을 때
+                    self.controller.saveData(filename)
 
     def format_filename(self, filename: str) -> str:
-        base_name, timestamp = filename.rsplit('_', 1)
+        *base_parts, base_name, timestamp = filename.rsplit('_', 2)
+        base_filename = '_'.join(base_parts)  # 나머지 부분을 다시 합침
         date_time_obj = datetime.strptime(timestamp, '%Y%m%d%H%M%S')
         formatted_time = date_time_obj.strftime('%Y.%m.%d %H:%M')
-        return f"{base_name} : {formatted_time}"
+        return f"{base_filename} [{base_name} : {formatted_time}]"
 
     def getSavedFileList(self) -> List[Tuple[str, str]]:
         data_files = [f for f in os.listdir('.') if f.endswith('.data')]

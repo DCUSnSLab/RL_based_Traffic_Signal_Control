@@ -86,10 +86,10 @@ class RunSimulation(InfraManager):
     def isTermiated(self):
         return self.isStop
 
-    def saveData(self):
+    def saveData(self, filename):
         if self.isStop is True:
             print('save data clicked')
-            with open(self._rtinfra.setSaveFileName(), "wb") as f:
+            with open(self._rtinfra.setSaveFileName(filename), "wb") as f:
                 pickle.dump(self._rtinfra, f)
                 print('---file saved at ',self._rtinfra.getFileName())
             #self.extract_excel()
