@@ -44,7 +44,7 @@ class SMUtil:
 class SECTION_RESULT(Enum):
     TIME = 'Time'
     SECTIONID = 'Sectionid'
-    CO2_EMISSION = 'Section_CO2_Emission'
+    SECTION_CO2 = 'Section_CO2_Emission'
     VOLUME = 'Section_Volume'
     TRAFFIC_QUEUE = 'traffic_queue'
     GREEN_TIME = 'green_time'
@@ -53,6 +53,7 @@ class SECTION_RESULT(Enum):
 class TOTAL_RESULT(Enum):
     TIME = 'Time'
     TOTAL_CO2 = 'Total CO2'
+    TOTAL_CO2_ACC = 'Total CO2 ACC'
     TOTAL_VOLUME = 'TOtal Volume'
 
 def get_input_station_value(direction: Direction) -> str:
@@ -301,7 +302,7 @@ class Section:
 
         self.dataDic = dict()
         self.dataDic[SECTION_RESULT.TIME] = self.__time
-        self.dataDic[SECTION_RESULT.CO2_EMISSION] = self.__section_co2
+        self.dataDic[SECTION_RESULT.SECTION_CO2] = self.__section_co2
         self.dataDic[SECTION_RESULT.TRAFFIC_QUEUE] = self.__section_queues
         self.dataDic[SECTION_RESULT.GREEN_TIME] = self._section_greentime
         self.dataDic[SECTION_RESULT.VOLUME] = self.__section_volumes
@@ -463,13 +464,16 @@ class Infra:
 
         self.__time = deque()
         self.__totalCO2 = deque()
+        self.__totalCO2ACC = deque()
         self.__totalVolume = deque()
         self.append_time = self.__time.append
         self.append_totalCO2 = self.__totalCO2.append
+        self.append_totalCO2ACC = self.__totalCO2ACC.append
         self.append_totalVolume = self.__totalVolume.append
         self.dataDic = {}
         self.dataDic[TOTAL_RESULT.TIME] = self.__time
         self.dataDic[TOTAL_RESULT.TOTAL_CO2] = self.__totalCO2
+        self.dataDic[TOTAL_RESULT.TOTAL_CO2_ACC] = self.__totalCO2ACC
         self.dataDic[TOTAL_RESULT.TOTAL_VOLUME] = self.__totalVolume
 
         self.sigType: str = sigtype
@@ -478,6 +482,7 @@ class Infra:
 
     def update(self):
         totalCO2 = 0
+        totalCO2ACC = 0
         totalVol = 0
         time = traci.simulation.getTime()
         for section_id, section in self.getSections().items():
@@ -489,9 +494,10 @@ class Infra:
         # for vehicle_id in vehicle_ids:
         #     totalCO2 += traci.vehicle.getCO2Emission(vehicle_id) / 1000
 
-        totalCO2 = self.__totalCO2[-1] + totalCO2 if len(self.__totalCO2) > 0 else totalCO2
+        totalCO2ACC = self.__totalCO2ACC[-1] + totalCO2 if len(self.__totalCO2ACC) > 0 else totalCO2
         totalVol = self.__totalVolume[-1] + totalVol if len(self.__totalVolume) > 0 else totalVol
         self.append_totalCO2(totalCO2)
+        self.append_totalCO2ACC(totalCO2ACC)
         self.append_totalVolume(totalVol)
         self.append_time(time)
 
