@@ -250,8 +250,8 @@ class SStation(Station):
                 speed += det.getSpeed()
                 self.inputVeh.update(det.getVehicles())
 
-        # if self.id == '020000' or self.id == '120026':
-        #     print('--station id',self.id,', volume: ',self.volume, ' speed: ',self.speed)
+        # if self.id == '020018' or self.id == '020018':
+        #     print('--station id',self.id, self.inputVeh)
 
         speed = 0 if volume == 0 else speed / volume
         volume = volume if volume == 0 or volume < len(self.inputVeh) else len(self.inputVeh)
@@ -485,9 +485,9 @@ class Infra:
             totalCO2 += section.getCurrentCO2()
             totalVol += section.getCurrentVol()
 
-        vehicle_ids = traci.vehicle.getIDList()
-        for vehicle_id in vehicle_ids:
-            totalCO2 += traci.vehicle.getCO2Emission(vehicle_id) / 1000
+        # vehicle_ids = traci.vehicle.getIDList()
+        # for vehicle_id in vehicle_ids:
+        #     totalCO2 += traci.vehicle.getCO2Emission(vehicle_id) / 1000
 
         totalCO2 = self.__totalCO2[-1] + totalCO2 if len(self.__totalCO2) > 0 else totalCO2
         totalVol = self.__totalVolume[-1] + totalVol if len(self.__totalVolume) > 0 else totalVol
