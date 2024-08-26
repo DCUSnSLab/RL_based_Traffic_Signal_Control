@@ -510,10 +510,10 @@ class Infra:
 
         filename = self.sigType + '_'
         if name is not None:
-            filename = filename + name
-        else:
-            formatted_time = self.__savedTime.strftime("%Y%m%d%H%M%S")
-            filename = filename+formatted_time
+            filename = name + '_' + filename
+
+        formatted_time = self.__savedTime.strftime("%Y%m%d%H%M%S")
+        filename = filename+formatted_time
 
         self.__savefileName = filename + '.data'
         return self.__savefileName

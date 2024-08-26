@@ -137,13 +137,7 @@ class TrafficSimulatorApp(QMainWindow):
         self.list_widget.setFixedWidth(500)
         self.list_widget.setFixedHeight(100)
 
-        # 파일 리스트 항목 추가
-        for orin, fn in self.getSavedFileList():
-            item = QListWidgetItem(fn)
-            item.setData(Qt.UserRole, orin)  # orin 값을 사용자 데이터로 저장
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Unchecked)
-            self.list_widget.addItem(item)
+        self.refreshComplist()
 
         self.list_widget.itemClicked.connect(self.on_item_clicked)
         menu1_layout.addWidget(self.list_widget)
@@ -204,6 +198,16 @@ class TrafficSimulatorApp(QMainWindow):
         main_layout.addLayout(state_layout)
         main_layout.addLayout(emission_layout)
         main_layout.addLayout(bottom_layout)
+
+    def refreshComplist(self):
+        # 파일 리스트 항목 추가
+        self.list_widget.clear()
+        for orin, fn in self.getSavedFileList():
+            item = QListWidgetItem(fn)
+            item.setData(Qt.UserRole, orin)  # orin 값을 사용자 데이터로 저장
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.list_widget.addItem(item)
 
     def onSigTypeActivated(self, typestr):
         self.signalControlType = SignalMode.from_string(typestr)
@@ -287,6 +291,7 @@ class TrafficSimulatorApp(QMainWindow):
                 filename = dialog.textValue()
                 if filename:  # 사용자가 파일 이름을 입력하고 확인을 눌렀을 때
                     self.controller.saveData(filename)
+                    self.refreshComplist()
 
     def format_filename(self, filename: str) -> str:
         *base_parts, base_name, timestamp = filename.rsplit('_', 2)
