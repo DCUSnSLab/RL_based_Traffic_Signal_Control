@@ -66,6 +66,6 @@ class InfraManager():
             co2_emission_df.to_excel(writer, sheet_name='Section_CO2_Emission')
             volume_df.to_excel(writer, sheet_name='Section_Volume')
             queue_df.to_excel(writer, sheet_name='traffic_queue')
-            greentime_df.to_excel(writer, sheet_name='traffic_queue')
+            greentime_df.to_excel(writer, sheet_name='green_time')
 
         print("Maked Excel")

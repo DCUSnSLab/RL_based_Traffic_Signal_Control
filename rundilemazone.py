@@ -6,6 +6,7 @@ class RunDilemaZone(RunSimulation):
     def __init__(self, config, name):
         super().__init__(config, name)
         self.extended_time = 0
+        self.bound = "0"
 
     def _signalControl(self):
         MinGreenTime = 0
@@ -28,39 +29,49 @@ class RunDilemaZone(RunSimulation):
 
         # Identify which bound is currently green
         if tls == "rrrrrrrrrrrgggg":
-            bound = "2"
+            self.bound = "2"
             MinGreenTime = current_phase.minDur
         elif tls == "rrrrggggrrrrrrr":
-            bound = "3"
+            self.bound = "3"
             MinGreenTime = current_phase.minDur
         elif tls == "ggggrrrrrrrrrrr":
-            bound = "0"
+            self.bound = "0"
             MinGreenTime = current_phase.minDur
         elif tls == "rrrrrrrrgggrrrr":
-            bound = "1"
+            self.bound = "1"
             MinGreenTime = current_phase.minDur
         else:
-            bound = "yellow"
+            self.bound = "yellow"
+            # for phase in self.logic.phases:
+            #     if phase.minDur is not None and phase.duration != phase.minDur:
+            #         phase.duration = phase.minDur
+            #     else:
+            #         pass
             self.extended_time = 0
 
         MaxGreenTime = MinGreenTime + 10
 
         for section_id, section in self.getInfra().getSections().items():
-            if bound == "yellow":
+            green_time = traci.trafficlight.getPhaseDuration("TLS_0")
+            if self.bound == "yellow":
                 pass
             else:
-                check_control = self.check_DilemmaZone(section, elapsed_time, bound, MinGreenTime, self.extended_time)
+                if section_id == self.bound and current_phase.duration > current_phase.minDur:
+                    section.setGreenTime(current_phase.minDur, self.logic)
+                check_control = self.check_DilemmaZone(section, elapsed_time, self.bound, MinGreenTime, self.extended_time)
                 if check_control == "pass":
                     print("*" * 50)
                     print("step:", simulation_time)
                     print("Section ID:", section_id)
                     print("Increasing green time by 1 second.")
                     print("Extended count:", self.extended_time)
-                    new_duration = remaining_time + 1
-                    traci.trafficlight.setPhaseDuration("TLS_0", new_duration)
+                    green_time += 1
+                    section.setGreenTime(green_time, self.logic)
                     print("*" * 50)
                     self.extended_time += 1
                 elif check_control == "yellow":
+                    # reset_time = green_time - self.extended_time
+                    # section.setGreenTime(reset_time, self.logic)
                     traci.trafficlight.setPhase("TLS_0", next_phase_index)
 
     def check_DilemmaZone(self, section, time, traffic_light_bound, MinGreenTime, MaxGreenTime):
@@ -78,7 +89,7 @@ class RunDilemaZone(RunSimulation):
                     if distance <= 120:
                         vehicle_speed = traci.vehicle.getSpeed(vehicle)
                         vehicle_type = traci.vehicle.getTypeID(vehicle)
-                        check_value = self.DilemmaZoneControlSignal(time, vehicle_speed, distance, vehicle_type, MinGreenTime, MaxGreenTime)
+                        check_value = self.DilemmaZoneControlSignal(section, time, vehicle_speed, distance, vehicle_type, MinGreenTime, MaxGreenTime)
                         dilemma_zone_results.append(check_value)
             if "pass" in dilemma_zone_results:
                 return "pass"
@@ -98,11 +109,12 @@ class RunDilemaZone(RunSimulation):
             stop_lane += stop_lane_position
         return stop_lane
 
-    def DilemmaZoneControlSignal(self, time, s, d, car_type, MinGreenTime, MaxGreenTime):
+    def DilemmaZoneControlSignal(self, section, time, s, d, car_type, MinGreenTime, MaxGreenTime):
         check = "none"
+        max = 1
         s = s * 3.6  # Convert speed to km/h
         if time >= MinGreenTime:
-            if MaxGreenTime <= 5:
+            if MaxGreenTime < max:
                 if car_type == "passenger":
                     T1 = s / 14  # Time to cross the stop line for a passenger vehicle
                     D1 = s * T1  # Distance required to stop
@@ -117,4 +129,6 @@ class RunDilemaZone(RunSimulation):
                         check = "yellow"
                     else:
                         check = "pass"  # Allow the vehicle to pass by extending green time
+            # else:
+            #     section.setGreenTime(MinGreenTime, self.logic)
         return check
