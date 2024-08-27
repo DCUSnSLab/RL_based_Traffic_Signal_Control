@@ -44,6 +44,7 @@ class SMUtil:
 
 class SECTION_RESULT(Enum):
     TIME = 'Time'
+    TIMEINT = 'Time Interval'
     SECTIONID = 'Sectionid'
     SECTION_CO2 = 'Section_CO2_Emission'
     VOLUME = 'Section_Volume'
@@ -314,12 +315,14 @@ class Section:
 
         #append data
         self.__time = deque()
+        self.__timeint = deque()
         self.__section_co2 = deque()
         self.__section_volumes = deque()
         self.__section_speedint = deque()
         self.__section_queues = deque()
         self._section_greentime = deque()
         self.append_section_time = self.__time.append
+        self.append_section_timeint = self.__timeint.append
         self.append_section_co2 = self.__section_co2.append
         self.append_section_volumes = self.__section_volumes.append
         self.append_section_speedint = self.__section_speedint.append
@@ -328,6 +331,7 @@ class Section:
 
         self.dataDic = dict()
         self.dataDic[SECTION_RESULT.TIME] = self.__time
+        self.dataDic[SECTION_RESULT.TIMEINT] = self.__timeint
         self.dataDic[SECTION_RESULT.SECTION_CO2] = self.__section_co2
         self.dataDic[SECTION_RESULT.TRAFFIC_QUEUE] = self.__section_queues
         self.dataDic[SECTION_RESULT.GREEN_TIME] = self._section_greentime
@@ -464,6 +468,8 @@ class SSection(Section):
         if isspeedadded is True:
             average_speed_int = speedsum / speedcnt * SMUtil.MPStoKPH
             self.append_section_speedint(average_speed_int)
+            self.append_section_timeint(time)
+
         for vehicle in self.section_vehicles:
             try:
                 if traci.vehicle.getCO2Emission(vehicle) >= 0:
