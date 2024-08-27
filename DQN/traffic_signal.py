@@ -8,6 +8,9 @@ from enum import Enum
 from collections import deque
 from traci import TraCIException
 import traci
+
+from Infra import Detector, Station, Section
+
 if "SUMO_HOME" in os.environ:
     tools = os.path.join(os.environ["SUMO_HOME"], "tools")
     sys.path.append(tools)
@@ -25,162 +28,162 @@ class Config_SUMO:
 
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
-class Direction(Enum):
-    SB = 0
-    NB = 1
-    EB = 2
-    WB = 3
-
-class InputStation(Enum):
-    SB = '000000'
-    NB = '010021'
-    EB = '020018'
-    WB = '030017'
-
-def get_input_station_value(direction: Direction) -> str:
-    # Direction의 name으로 InputStation을 찾아서 value를 반환
-    return InputStation[direction.name].value
-
-# Detector
-class Detector:
-    def __init__(self, id):
-        self.id = id
-        self.aux, self.bound, self.station_id, self.detector_id = self.parse_detector_id(id)
-        self.minInterval = 30
-        self.speed = 0
-        self.volume = 0
-        self.prevVehicles = tuple()
-    def parse_detector_id(self, id):
-        parts = id.split('_')
-        if len(parts) != 2 or not parts[0].startswith("Det"):
-            raise ValueError(f"Invalid detector ID format: {id}")
-        det_info = parts[1]
-        aux = det_info[0]
-        bound = Direction(int(det_info[1]))
-        station_id = det_info[0:6]
-        detector_id = det_info[6:]
-        return aux, bound, station_id, detector_id
-
-    #update detection data by interval
-    def update(self):
-        vehicle_ids = traci.inductionloop.getLastStepVehicleIDs(self.id)
-        #check duplicated vehicles
-        dupvol = 0
-        if self.prevVehicles is not None:
-            for veh in vehicle_ids:
-                if veh in self.prevVehicles:
-                    dupvol += 1
-
-        self.prevVehicles = vehicle_ids
-
-        self.volume = traci.inductionloop.getLastStepVehicleNumber(self.id) - dupvol
-        # if self.id == 'Det_02000000' or self.id == 'Det_02000001' or self.id == 'Det_12002604':
-        #     print("%s -> v : %d" % (self.id, self.volume))
-            #print('--- lsvid : ', vehicle_ids, type(vehicle_ids))
-
-    def getVolume(self):
-        return self.volume
-
-    def getVehicles(self):
-        return self.prevVehicles
-
-class Station:
-    def __init__(self, id, detectors):
-        self.id = id
-        self.dets = detectors
-        self.direction = None if len(self.dets) == 0 else self.dets[0].bound
-        self.volume = 0
-        self.exitVolume = 0
-        self.inputVeh = set()
-        self.exitVeh = set()
-
-
-    def update(self):
-        self.volume = 0
-        self.exitVolume = 0
-        self.inputVeh = set()
-        self.exitVeh = set()
-
-        for det in self.dets:
-            det.update()
-
-            if det.aux == '1':
-                self.exitVolume += det.getVolume()
-                self.exitVeh.update(det.getVehicles())
-            else:
-                self.volume += det.getVolume()
-                self.inputVeh.update(det.getVehicles())
-
-        self.volume = self.volume if self.volume == 0 or self.volume < len(self.inputVeh) else len(self.inputVeh)
-        self.exitVolume = self.exitVolume if self.exitVolume == 0 or self.exitVolume < len(self.exitVeh) else len(self.exitVeh)
-
-
-    def getVolume(self):
-        return self.volume
-
-    def getExitVolume(self):
-        return self.exitVolume
-
-    def getVehicleData(self):
-        return list(self.inputVeh), list(self.exitVeh)
-
-    def getInputVehIds(self):
-        return self.inputVeh
-
-    def getExitVehIds(self):
-        return self.exitVeh
-
-class Section:
-    def __init__(self, id, stations):
-        self.id = id
-        self.stations = stations
-        self.direction = None if len(self.stations) == 0 else self.stations[0].direction
-        self.section_co2_emission = 0
-        self.section_volume = 0
-        self.traffic_queue = 0
-        self.section_vehicles = set()
-        # self.stop_lane = self.StopLane_position()
-        self.in_dilemmaZone=set()
-
-    def reset(self):
-        self.section_co2_emission = 0
-        self.section_volume = 0
-        self.traffic_queue = 0
-        self.section_vehicles = set()
-        self.in_dilemmaZone = set()
-
-    def collect_data(self):
-        # print("CD_sec_co2:", self.section_co2_emission, "CD_sec_vol: ", self.section_volume, "CD_queue :", self.traffic_queue)
-        return self.section_co2_emission, self.section_volume, self.traffic_queue, list(self.section_vehicles)
-
-    def update(self):
-        self.section_co2_emission = 0
-        self.section_volume = 0
-        removal_veh = list()
-        for i, station in enumerate(self.stations):
-            station.update()
-            if i == 0:
-                self.section_volume += station.getVolume()
-            if station.id == get_input_station_value(self.direction):
-                self.traffic_queue += station.getVolume()
-                self.section_vehicles.update(station.getInputVehIds())
-
-            self.traffic_queue -= station.getExitVolume()
-            self.section_vehicles.difference_update(station.getExitVehIds())
-
-            # Ensure traffic_queue does not become negative
-            if self.traffic_queue < 0:
-                print(f"Warning: traffic_queue became negative: {self.traffic_queue}")
-                self.traffic_queue = 0
-
-        for vehicle in self.section_vehicles:
-            try:
-                if traci.vehicle.getCO2Emission(vehicle) >= 0:
-                    self.section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
-            except TraCIException:
-                removal_veh.append(vehicle)
-
-        self.section_vehicles.difference_update(removal_veh)
+# class Direction(Enum):
+#     SB = 0
+#     NB = 1
+#     EB = 2
+#     WB = 3
+#
+# class InputStation(Enum):
+#     SB = '000000'
+#     NB = '010021'
+#     EB = '020018'
+#     WB = '030017'
+#
+# def get_input_station_value(direction: Direction) -> str:
+#     # Direction의 name으로 InputStation을 찾아서 value를 반환
+#     return InputStation[direction.name].value
+#
+# # Detector
+# class Detector:
+#     def __init__(self, id):
+#         self.id = id
+#         self.aux, self.bound, self.station_id, self.detector_id = self.parse_detector_id(id)
+#         self.minInterval = 30
+#         self.speed = 0
+#         self.volume = 0
+#         self.prevVehicles = tuple()
+#     def parse_detector_id(self, id):
+#         parts = id.split('_')
+#         if len(parts) != 2 or not parts[0].startswith("Det"):
+#             raise ValueError(f"Invalid detector ID format: {id}")
+#         det_info = parts[1]
+#         aux = det_info[0]
+#         bound = Direction(int(det_info[1]))
+#         station_id = det_info[0:6]
+#         detector_id = det_info[6:]
+#         return aux, bound, station_id, detector_id
+#
+#     #update detection data by interval
+#     def update(self):
+#         vehicle_ids = traci.inductionloop.getLastStepVehicleIDs(self.id)
+#         #check duplicated vehicles
+#         dupvol = 0
+#         if self.prevVehicles is not None:
+#             for veh in vehicle_ids:
+#                 if veh in self.prevVehicles:
+#                     dupvol += 1
+#
+#         self.prevVehicles = vehicle_ids
+#
+#         self.volume = traci.inductionloop.getLastStepVehicleNumber(self.id) - dupvol
+#         # if self.id == 'Det_02000000' or self.id == 'Det_02000001' or self.id == 'Det_12002604':
+#         #     print("%s -> v : %d" % (self.id, self.volume))
+#             #print('--- lsvid : ', vehicle_ids, type(vehicle_ids))
+#
+#     def getVolume(self):
+#         return self.volume
+#
+#     def getVehicles(self):
+#         return self.prevVehicles
+#
+# class Station:
+#     def __init__(self, id, detectors):
+#         self.id = id
+#         self.dets = detectors
+#         self.direction = None if len(self.dets) == 0 else self.dets[0].bound
+#         self.volume = 0
+#         self.exitVolume = 0
+#         self.inputVeh = set()
+#         self.exitVeh = set()
+#
+#
+#     def update(self):
+#         self.volume = 0
+#         self.exitVolume = 0
+#         self.inputVeh = set()
+#         self.exitVeh = set()
+#
+#         for det in self.dets:
+#             det.update()
+#
+#             if det.aux == '1':
+#                 self.exitVolume += det.getVolume()
+#                 self.exitVeh.update(det.getVehicles())
+#             else:
+#                 self.volume += det.getVolume()
+#                 self.inputVeh.update(det.getVehicles())
+#
+#         self.volume = self.volume if self.volume == 0 or self.volume < len(self.inputVeh) else len(self.inputVeh)
+#         self.exitVolume = self.exitVolume if self.exitVolume == 0 or self.exitVolume < len(self.exitVeh) else len(self.exitVeh)
+#
+#
+#     def getVolume(self):
+#         return self.volume
+#
+#     def getExitVolume(self):
+#         return self.exitVolume
+#
+#     def getVehicleData(self):
+#         return list(self.inputVeh), list(self.exitVeh)
+#
+#     def getInputVehIds(self):
+#         return self.inputVeh
+#
+#     def getExitVehIds(self):
+#         return self.exitVeh
+#
+# class Section:
+#     def __init__(self, id, stations):
+#         self.id = id
+#         self.stations = stations
+#         self.direction = None if len(self.stations) == 0 else self.stations[0].direction
+#         self.section_co2_emission = 0
+#         self.section_volume = 0
+#         self.traffic_queue = 0
+#         self.section_vehicles = set()
+#         # self.stop_lane = self.StopLane_position()
+#         self.in_dilemmaZone=set()
+#
+#     def reset(self):
+#         self.section_co2_emission = 0
+#         self.section_volume = 0
+#         self.traffic_queue = 0
+#         self.section_vehicles = set()
+#         self.in_dilemmaZone = set()
+#
+#     def collect_data(self):
+#         # print("CD_sec_co2:", self.section_co2_emission, "CD_sec_vol: ", self.section_volume, "CD_queue :", self.traffic_queue)
+#         return self.section_co2_emission, self.section_volume, self.traffic_queue, list(self.section_vehicles)
+#
+#     def update(self):
+#         self.section_co2_emission = 0
+#         self.section_volume = 0
+#         removal_veh = list()
+#         for i, station in enumerate(self.stations):
+#             station.update()
+#             if i == 0:
+#                 self.section_volume += station.getVolume()
+#             if station.id == get_input_station_value(self.direction):
+#                 self.traffic_queue += station.getVolume()
+#                 self.section_vehicles.update(station.getInputVehIds())
+#
+#             self.traffic_queue -= station.getExitVolume()
+#             self.section_vehicles.difference_update(station.getExitVehIds())
+#
+#             # Ensure traffic_queue does not become negative
+#             if self.traffic_queue < 0:
+#                 print(f"Warning: traffic_queue became negative: {self.traffic_queue}")
+#                 self.traffic_queue = 0
+#
+#         for vehicle in self.section_vehicles:
+#             try:
+#                 if traci.vehicle.getCO2Emission(vehicle) >= 0:
+#                     self.section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
+#             except TraCIException:
+#                 removal_veh.append(vehicle)
+#
+#         self.section_vehicles.difference_update(removal_veh)
 
 
 class TrafficSignal:
@@ -393,7 +396,7 @@ class TrafficSignal:
         new_queue_reward = []
         for section_id, section in self.section_objects.items():
             # 각 섹션의 데이터 수집
-            section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
+            section_co2_emission, section_volume, traffic_queue, section_greentime = section.collect_data()
             # print(f"section_id: {section_id}, traffic_signal_traffic_queue: {traffic_queue}",)
             # 섹션별 CO2 배출량에 대한 보상 계산
             # max_CO2_emission = self.max_CO2_emissions.get(section_id)

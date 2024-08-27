@@ -301,8 +301,8 @@ class SumoEnvironment(gym.Env):
         if seed is not None:
             self.sumo_seed = seed
         self._start_simulation()
-        for section in self.section_objects.values():
-            section.reset()
+        # for section in self.section_objects.values():
+        #     section.reset()
         if isinstance(self.reward_fn, dict):
             self.traffic_signals = {
                 ts: TrafficSignal(
@@ -356,7 +356,7 @@ class SumoEnvironment(gym.Env):
             If single_agent is True, action is an int, otherwise it expects a dict with keys corresponding to traffic signal ids.
         """
         for section_id, section in self.section_objects.items():
-            section.update()
+            section.update(0)
         # No action, follow fixed TL defined in self.phases
         if self.fixed_ts or action is None or action == {}: # 고정 신호거나 액션이 없거나 액션이 비어있다면 이것을 행함
             for _ in range(self.delta_time):
@@ -485,18 +485,18 @@ class SumoEnvironment(gym.Env):
         total_vehicles = 0
         # 각 섹션의 데이터를 수집
         for section_id, section in self.section_objects.items():
-            section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
+            section_co2_emission, section_volume, traffic_queue, greentime = section.collect_data()
 
             # 섹션별 정보를 딕셔너리에 저장
             info[f"{section_id}_co2"] = section_co2_emission
             # print(f"{section_co2_emission}, {section_volume}, {traffic_queue}, {section_volume}")
             info[f"{section_id}_traffic_queue"] = traffic_queue
-            info[f"{section_id}_vehicles"] = len(section_vehicles)
+            # info[f"{section_id}_vehicles"] = len(section_vehicles)
             # 전체 CO2와 차량 수를 누적
             total_CO2 += section_co2_emission
-            total_vehicles += len(section_vehicles)
+            # total_vehicles += len(section_vehicles)
         info["system_total_CO2"] = total_CO2
-        info["system_total_vehicles"] = total_vehicles
+        #info["system_total_vehicles"] = total_vehicles
         return info
 
     def _get_per_agent_info(self):
@@ -508,11 +508,11 @@ class SumoEnvironment(gym.Env):
             section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
             info[f"agent_{section_id}_co2"] = section_co2_emission
             info[f"agent_{section_id}_traffic_queue"] = traffic_queue
-            info[f"agent_{section_id}_vehicles"] = section_vehicles
+            # info[f"agent_{section_id}_vehicles"] = section_vehicles
             total_agent_CO2 += section_co2_emission
-            total_agent_vehicles += len(section_vehicles)
+            # total_agent_vehicles += len(section_vehicles)
         info["total_agent_CO2"] = total_agent_CO2
-        info["total_agent_vehicles"] = total_agent_vehicles
+        # info["total_agent_vehicles"] = total_agent_vehicles
         return info
 
     def close(self):
