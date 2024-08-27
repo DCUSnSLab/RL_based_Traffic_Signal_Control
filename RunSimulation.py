@@ -14,7 +14,9 @@ class RunSimulation(InfraManager):
 
         self.traffic_light_id = "TLS_0"
         self.isStop = True
+        self.step = 0
 
+        self.original_logic = None
         self.logic = None
         self._rtinfra = self.getInfra()
 
@@ -78,7 +80,6 @@ class RunSimulation(InfraManager):
     def __set_SUMO(self):
         traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start", "--quit-on-end"])
         traci.simulationStep()
-        self.setDone = True
 
     def terminate(self):
         self.isStop = True
@@ -86,10 +87,10 @@ class RunSimulation(InfraManager):
     def isTermiated(self):
         return self.isStop
 
-    def saveData(self):
+    def saveData(self, filename):
         if self.isStop is True:
             print('save data clicked')
-            with open(self._rtinfra.setSaveFileName(), "wb") as f:
+            with open(self._rtinfra.setSaveFileName(filename), "wb") as f:
                 pickle.dump(self._rtinfra, f)
                 print('---file saved at ',self._rtinfra.getFileName())
             #self.extract_excel()
@@ -101,12 +102,11 @@ class RunSimulation(InfraManager):
         pass
 
     def run_simulation(self):
-        check = 0
         print('---- start Simulation (signController : ',self.sigTypeName, ") ----")
-        step = 0
+        self.step = 0
         self.isStop = False
-        # while not self.isStop and step <= 100:
-        while not self.isStop and step <= 11700:
+
+        while not self.isStop and self.step <= 11700:
             #start_time = time.time()
             traci.simulationStep()
 
@@ -114,12 +114,13 @@ class RunSimulation(InfraManager):
             self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
             self._signalControl()
-
+            if self.sigTypeName != "Reinforement Learning based Control":
+                self._refreshSignalPhase()
             # print('Green times: ', end='')
 
             self._rtinfra.update()
 
-            step += 1
+            self.step += 1
 
         self.isStop = True
         traci.close()

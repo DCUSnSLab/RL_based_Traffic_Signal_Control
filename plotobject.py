@@ -1,4 +1,5 @@
 import random
+from enum import Enum
 from typing import List
 
 import numpy as np
@@ -9,20 +10,38 @@ import pyqtgraph as pg
 from pyqtgraph import PlotWidget
 from scipy.signal import butter, filtfilt
 
-from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT
+from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT, SMUtil
 
+
+class PLOTMODE(Enum):
+    GREENTIME = (lambda: PlotSection('Section Signal Green Time', 'Time(s)', 'green time', SECTION_RESULT.GREEN_TIME), SECTION_RESULT.GREEN_TIME.name)
+    QUEUE = (lambda: PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', SECTION_RESULT.TRAFFIC_QUEUE), SECTION_RESULT.TRAFFIC_QUEUE.name)
+    CO2TOTALACC = (lambda: PlotInfra('Accumulative Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2_ACC), TOTAL_RESULT.TOTAL_CO2_ACC.name)
+    CO2SECTION = (lambda: PlotSection('CO2 Emissions by Bound', 'Time(s)', 'CO2 Emission(kg)', SECTION_RESULT.SECTION_CO2, ismoving=False), SECTION_RESULT.SECTION_CO2.name)
+    SECTIONSPEEDINT = (lambda: PlotSection('Section Speed by Interval('+str(SMUtil.interval)+'s)', 'Time(every '+str(SMUtil.interval)+'s)', 'Speed(km/h)', SECTION_RESULT.SPEED_INT,ismoving=False, interval=100), SECTION_RESULT.SPEED_INT.name)
+    TOTALCO2 = (lambda: PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2), TOTAL_RESULT.TOTAL_CO2.name)
+    TOTALVOLUMEACC = (lambda: PlotInfra('Accumulative Total Volume', 'Time(s)', 'Volumes(Number of Vehicles)', TOTAL_RESULT.TOTAL_VOLUME), TOTAL_RESULT.TOTAL_VOLUME.name)
+    @classmethod
+    def from_string(cls, result):
+        for mode in cls:
+            if mode.value[1] == result:
+                return mode
+        raise ValueError(f"{result} is not a valid SignalMode value")
 
 class PlotObject():
-    def __init__(self, title, l_bottom, l_left, compInfra: List[Infra]=None, ismoving=False):
-        self.__title = title
+    def __init__(self, title, l_bottom, l_left, useComp=False, compInfra: List[Infra]=None, ismoving=False, interval=500):
+        self._title = title
         self.__label_bottom = l_bottom
         self.__label_left = l_left
         self._isMoving = ismoving
+        self._movingInterval = interval
 
         self._plotwidget: PlotWidget = None
         self._plots = []
         self._labels = []
         self._compInfra: List[Infra] = compInfra
+        self.isCompAdded = False
+        self.useComp = useComp
 
         self.colorset = ('r', 'g', 'b', 'c') #SB, NB, EB, WB
         self.__ymax = 0
@@ -34,7 +53,7 @@ class PlotObject():
         self.compare_infra: List[Infra] = None
 
     def __initUI(self):
-        self._plotwidget = pg.PlotWidget(title=self.__title)
+        self._plotwidget = pg.PlotWidget(title=self._title)
         self._plotwidget.plotItem.setLabels(bottom=self.__label_bottom, left=self.__label_left)
         self._plotwidget.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
         self._plotwidget.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
@@ -58,13 +77,30 @@ class PlotObject():
 
     def addPlot(self, name='default', color='black'):
         self._plots.append(self._plotwidget.plot(pen=color))
-
         color_str = f"RGB{color}"
         #add label
         label = pg.TextItem(text='── ' + name + ' (' + color_str + ')',color=color)
         label.setFont(QFont("Arial", 12))
         self._plotwidget.addItem(label)
         self._labels.append(label)
+
+    def addCompPlot(self, compInfra):
+        if compInfra is not None and self.useComp is True:
+            if len(self._plots) > 0:
+                while len(self._plots) > 0:
+                    self._plotwidget.removeItem(self._plots.pop())
+                    self._plotwidget.removeItem(self._labels.pop())
+
+            for i, ci in enumerate(self._compInfra):
+                color = 'b'
+                if i < 3:
+                    color = self.colorset[i]
+                else:
+                    color = self.generate_random_color()
+                self.addPlot(ci.sigType+'_'+ci.getSavedTime().strftime("%Y-%m-%d"), color)
+            self.isCompAdded = True
+            self.addPlot('Proposed', 'r')
+
 
     def setLabelText(self, idx, name):
         self._labels[idx].setPlainText(name)
@@ -87,7 +123,9 @@ class PlotObject():
 
     def update(self, rtinfra, compare_infras):
         self.rtinfra = rtinfra
-        self.compare_infra = compare_infras
+        self._compInfra = compare_infras
+        if self._compInfra is not None and self.isCompAdded is False:
+            self.addCompPlot(self._compInfra)
         self.updateLabels()
         self.updatePlot()
 
@@ -98,11 +136,13 @@ class PlotObject():
         b = random.randint(0, 255)
         return (r, g, b)
 
+    def resetCompAdded(self):
+        self.isCompAdded = False
 
 
 class PlotSection(PlotObject):
-    def __init__(self, title, l_bottom, l_left, sel_data, ismoving=False):
-        super().__init__(title, l_bottom, l_left, ismoving)
+    def __init__(self, title, l_bottom, l_left, sel_data, ismoving=False, interval=500):
+        super().__init__(title, l_bottom, l_left, useComp=False, ismoving=ismoving, interval=interval)
         self.sectionColor = {}
         self.__initSectionColor()
         self.__initSectionplot()
@@ -125,38 +165,41 @@ class PlotSection(PlotObject):
             time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIME)
             data = sections[str(i)].getDatabyID(self.__sel_data)
             if self._isMoving is True:
-                time_data = list(time_data)[-500:]
-                data = list(data)[-500:]
+                time_data = list(time_data)[-self._movingInterval:]
+                data = list(data)[-self._movingInterval:]
 
             data = self.low_pass_filter(data)
+
+            min_length = min(len(time_data), len(data))
+            time_data = list(time_data)[:min_length]
+            data = list(data)[:min_length]
+
             plot.setData(time_data, data)
 
         if self._isMoving is True:
-            self._plotwidget.plotItem.setXRange(max(time_data[-1] - 500, 0), time_data[-1])
-            self.updateLabels(max(time_data[-1] - 500, 0))
+            self._plotwidget.plotItem.setXRange(max(time_data[-1] - self._movingInterval, 0), time_data[-1])
+            self.updateLabels(max(time_data[-1] - self._movingInterval, 0))
 
 class PlotInfra(PlotObject):
-    def __init__(self, title, l_bottom, l_left, sel_data, selType, compinfra=None, ismoving=False):
-        super().__init__(title, l_bottom, l_left, compinfra, ismoving)
+    def __init__(self, title, l_bottom, l_left, sel_data, selType=None, compinfra=None, ismoving=False):
+        super().__init__(title, l_bottom, l_left, True, compinfra, ismoving)
         self.__sel_data: TOTAL_RESULT = sel_data
         self.__selType = selType
         self.colorset = ('g','b','c')
-        if self._compInfra is not None:
-            for i, ci in enumerate(self._compInfra):
-                color = 'b'
-                if i < 3:
-                    color = self.colorset[i]
-                else:
-                    color = self.generate_random_color()
-                self.addPlot(ci.sigType+'_'+ci.getSavedTime().strftime("%Y-%m-%d"), color)
-
+        self.addCompPlot(self._compInfra)
         self.addPlot('Proposed', 'r')
 
     def updatePlot(self):
         time_data = self.rtinfra.getTime()
         data = self.rtinfra.getDatabyID(self.__sel_data)
-        if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
+
+        if self.__sel_data == TOTAL_RESULT.TOTAL_CO2 or self.__sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
             data = np.array(data) / 1000
+
+        min_length = min(len(time_data), len(data))
+        time_data = list(time_data)[:min_length]
+        data = list(data)[:min_length]
+
         self._plots[-1].setData(time_data, data)
 
         if self._compInfra is not None:
@@ -164,6 +207,11 @@ class PlotInfra(PlotObject):
                 comptime = ci.getTime()
                 compinfra = ci.getDatabyID(self.__sel_data) if ci is not None else 0
 
-                if self.__sel_data == TOTAL_RESULT.TOTAL_CO2:
+                if self.__sel_data == TOTAL_RESULT.TOTAL_CO2  or self.__sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
                     compinfra = np.array(compinfra) / 1000
+
+                min_length = min(len(comptime), len(compinfra))
+                comptime = list(comptime)[:min_length]
+                compinfra = list(compinfra)[:min_length]
+
                 self._plots[i].setData(comptime, compinfra)

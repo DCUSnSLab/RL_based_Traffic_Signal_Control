@@ -30,9 +30,9 @@ logging.basicConfig(
 env = SumoEnvironment(
     net_file="../New_TestWay/test.net_mergy.xml",
     single_agent=True,
-    route_file="../New_TestWay/generated_flows_pm_test.xml",
+    route_file="../New_TestWay/generated_flows_am.xml",
     out_csv_name="../New_TestWay/dqn/",
-    use_gui=False,
+    use_gui=True,
     num_seconds=15000,
     yellow_time=4,
     min_green=5,

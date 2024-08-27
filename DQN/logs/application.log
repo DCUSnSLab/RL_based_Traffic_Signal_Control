@@ -1,8 +1,0 @@
-2024-08-24 17:47:34,217 - INFO - Transitioned to exploitation at step 0 with exploration_rate 0.0
-2024-08-24 17:47:34,386 - INFO - Transitioned to exploitation at step 3 with exploration_rate 0.6999776666666667
-2024-08-24 17:47:34,775 - INFO - Transitioned to exploitation at step 10 with exploration_rate 0.6999255555555555
-2024-08-24 17:47:35,430 - INFO - Transitioned to exploitation at step 21 with exploration_rate 0.6998436666666666
-2024-08-24 17:47:35,553 - INFO - Transitioned to exploitation at step 23 with exploration_rate 0.6998287777777779
-2024-08-24 17:47:35,620 - INFO - Transitioned to exploitation at step 24 with exploration_rate 0.6998213333333334
-2024-08-24 17:47:35,684 - INFO - Transitioned to exploitation at step 25 with exploration_rate 0.6998138888888888
-2024-08-24 17:47:36,077 - INFO - Transitioned to exploitation at step 31 with exploration_rate 0.6997692222222222

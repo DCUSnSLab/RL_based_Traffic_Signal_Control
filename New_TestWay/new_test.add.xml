@@ -11,6 +11,11 @@
 
 	
 	<!-- Nb -->
+    <inductionLoop id="Det_01000000" lane="E133_4" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000001" lane="E133_3" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000002" lane="E133_2" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000003" lane="E133_1" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000004" lane="E133_0" pos="90.00" period="300.00" file="Nb.xml"/>
     <inductionLoop id="Det_01002100" lane="E125_4" pos="60.00" period="300.00" file="Nb.xml"/>
     <inductionLoop id="Det_01002101" lane="E125_3" pos="60.00" period="300.00" file="Nb.xml"/>
     <inductionLoop id="Det_01002102" lane="E125_2" pos="60.00" period="300.00" file="Nb.xml"/>
@@ -18,10 +23,14 @@
     <inductionLoop id="Det_01002104" lane="E125_0" pos="60.00" period="300.00" file="Nb.xml"/>
     
 	<!-- Eb -->
+    <inductionLoop id="Det_02000000" lane="E67_1" pos="155.00" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_02000001" lane="E67_0" pos="155.00" period="300.00" file="Eb.xml"/>
     <inductionLoop id="Det_02001800" lane="E69_1" pos="66.00" period="300.00" file="Eb.xml"/>
     <inductionLoop id="Det_02001801" lane="E69_0" pos="66.00" period="300.00" file="Eb.xml"/>
     
 	<!-- Wb -->
+    <inductionLoop id="Det_03000000" lane="E44_1" pos="160.00" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03000001" lane="E44_0" pos="160.00" period="300.00" file="Wb.xml"/>
     <inductionLoop id="Det_03001700" lane="E41_2" pos="53.50" period="300.00" file="Wb.xml"/>
     <inductionLoop id="Det_03001701" lane="E41_1" pos="53.50" period="300.00" file="Wb.xml"/>
     <inductionLoop id="Det_03001702" lane="E41_0" pos="53.50" period="300.00" file="Wb.xml"/>

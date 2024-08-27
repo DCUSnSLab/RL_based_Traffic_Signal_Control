@@ -35,7 +35,7 @@ class InfraManager():
         append_result = section_results.append
         file_name = ""
         if saveCompare is False:
-            data = self.rtInfra
+            data = self.getInfra()
         else:
             data = self.compareInfra
             file_name = 'extract_'
@@ -49,7 +49,7 @@ class InfraManager():
                 append_result({
                     'Time': time,
                     'Section': section_id,
-                    'Section_CO2_Emission': section.getDatabyID(SECTION_RESULT.CO2_EMISSION)[i],
+                    'Section_CO2_Emission': section.getDatabyID(SECTION_RESULT.SECTION_CO2)[i],
                     'Section_Volume': section.getDatabyID(SECTION_RESULT.VOLUME)[i],
                     'traffic_queue': section.getDatabyID(SECTION_RESULT.TRAFFIC_QUEUE)[i],
                     'green_time': section.getDatabyID(SECTION_RESULT.GREEN_TIME)[i],

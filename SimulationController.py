@@ -7,6 +7,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot, Qt
 import pyqtgraph as pg
 
 from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT, Config_SUMO
+from graphmanager import GraphLayout
 from plotobject import PlotSection, PlotInfra
 from runactuated import RunActuated
 from RunSimulation import RunSimulation
@@ -58,6 +59,7 @@ class TrafficSimulatorApp(QMainWindow):
         menu1_layout = QHBoxLayout()
         menu2_layout = QHBoxLayout()
         top_layout = QHBoxLayout()
+
         state_layout = QHBoxLayout()
         signal_layout = QVBoxLayout()
         queue_layout = QVBoxLayout()
@@ -66,38 +68,34 @@ class TrafficSimulatorApp(QMainWindow):
         emission_layout = QHBoxLayout()
         self.emit1 = QHBoxLayout()
         bottom_layout = QHBoxLayout()
-
-        if self.DEBUG is not True:
-            #signal_layout.addWidget(sigplot)
-            ps = PlotSection('Section Signal Green Time', 'Time(s)', 'green time', SECTION_RESULT.GREEN_TIME)
-            self.plotlist['greentime'] = ps
-            signal_layout.addWidget(ps.getWidtget())
-
-            # signal_layout.addWidget(sigplot)
-
-            qs = PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', SECTION_RESULT.TRAFFIC_QUEUE)
-            self.plotlist['queue'] = qs
-            queue_layout.addWidget(qs.getWidtget())
-
-            # Queue graph
-            self.queue_graph = pg.PlotWidget(title="Queue")
-            self.queue_graph.plotItem.setLabels(bottom='Direction', left="Queue Length (Number of Vehicles)")
-            self.queue_graph.plotItem.getAxis('bottom').setPen(pg.mkPen(color='#000000', width=3))
-            self.queue_graph.plotItem.getAxis('left').setPen(pg.mkPen(color='#000000', width=3))
-            self.queue_graph.setBackground('w')
-            self.queue_graph.setYRange(0, 100)
-
-            #queue_layout.addWidget(self.queue_graph)
-
-            self.totalte = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2, self.signalControlType)
-            self.plotlist['totalco2'] = self.totalte
-            self.emit1.addWidget(self.totalte.getWidtget())
-            emission_layout.addLayout(self.emit1)
+        self.graphlayout = GraphLayout()
+        main_layout.addLayout(select_layout)
+        main_layout.addLayout(top_layout)
+        main_layout.addLayout(self.graphlayout)
+        # main_layout.addLayout(state_layout)
+        # main_layout.addLayout(emission_layout)
+        main_layout.addLayout(bottom_layout)
 
 
-            co2 = PlotSection('CO2 Emissions by Bound', 'Time(s)', 'CO2 Emission(kg)', SECTION_RESULT.CO2_EMISSION, ismoving=True)
-            self.plotlist['co2bound'] = co2
-            emission_layout.addWidget(co2.getWidtget())
+        #signal_layout.addWidget(sigplot)
+        ps = PlotSection('Section Signal Green Time', 'Time(s)', 'green time', SECTION_RESULT.GREEN_TIME)
+        self.plotlist['greentime'] = ps
+        signal_layout.addWidget(ps.getWidtget())
+
+        # signal_layout.addWidget(sigplot)
+
+        qs = PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', SECTION_RESULT.TRAFFIC_QUEUE)
+        self.plotlist['queue'] = qs
+        queue_layout.addWidget(qs.getWidtget())
+
+        self.totalte = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2, self.signalControlType)
+        self.plotlist['totalco2'] = self.totalte
+        self.emit1.addWidget(self.totalte.getWidtget())
+        emission_layout.addLayout(self.emit1)
+
+        co2 = PlotSection('CO2 Emissions by Bound', 'Time(s)', 'CO2 Emission(kg)', SECTION_RESULT.SECTION_CO2, ismoving=True)
+        self.plotlist['co2bound'] = co2
+        emission_layout.addWidget(co2.getWidtget())
 
         #Select Signal Type
         #label
@@ -135,19 +133,9 @@ class TrafficSimulatorApp(QMainWindow):
         font.setPointSize(12)
         self.list_widget.setFont(font)
         self.list_widget.setFixedWidth(500)
+        self.list_widget.setFixedHeight(100)
 
-        item = QListWidgetItem("No Comparison")
-        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)  # 체크 가능하게 설정
-        item.setCheckState(Qt.Unchecked)
-        self.list_widget.addItem(item)
-
-        # 파일 리스트 항목 추가
-        for orin, fn in self.getSavedFileList():
-            item = QListWidgetItem(fn)
-            item.setData(Qt.UserRole, orin)  # orin 값을 사용자 데이터로 저장
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Unchecked)
-            self.list_widget.addItem(item)
+        self.refreshComplist()
 
         self.list_widget.itemClicked.connect(self.on_item_clicked)
         menu1_layout.addWidget(self.list_widget)
@@ -203,11 +191,17 @@ class TrafficSimulatorApp(QMainWindow):
         select_layout.addLayout(menu1_layout)
         select_layout.addLayout(menu2_layout)
 
-        main_layout.addLayout(select_layout)
-        main_layout.addLayout(top_layout)
-        main_layout.addLayout(state_layout)
-        main_layout.addLayout(emission_layout)
-        main_layout.addLayout(bottom_layout)
+
+
+    def refreshComplist(self):
+        # 파일 리스트 항목 추가
+        self.list_widget.clear()
+        for orin, fn in self.getSavedFileList():
+            item = QListWidgetItem(fn)
+            item.setData(Qt.UserRole, orin)  # orin 값을 사용자 데이터로 저장
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.list_widget.addItem(item)
 
     def onSigTypeActivated(self, typestr):
         self.signalControlType = SignalMode.from_string(typestr)
@@ -227,7 +221,7 @@ class TrafficSimulatorApp(QMainWindow):
             item = self.list_widget.item(index)
             if item.checkState() == Qt.Checked:
                 self.compData.append(item.data(Qt.UserRole))
-        print("Selected data:", self.compData)
+        #print("Selected data:", self.compData)
 
     def initialize_controller(self, extract=False):
         print(self.signalControlType)
@@ -238,26 +232,19 @@ class TrafficSimulatorApp(QMainWindow):
         if self.compData is not None:
             emul = RunEmulator(self.compData)
             self.comparedInfras = emul.getInfras()
-
-            self.emit1.removeWidget(self.totalte.getWidtget())
-            self.totalte.getWidtget().deleteLater()
-            self.totalte = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2,
-                           self.signalControlType, self.comparedInfras)
-            self.plotlist['totalco2'] = self.totalte
-
-            self.emit1.addWidget(self.totalte.getWidtget())
+            self.graphlayout.resetPlotCompAdded()
 
 
     def start_simulation(self):
         self.initialize_controller()  # Initialize the controller if it hasn't been initialized
         self.simulation_thread = SimulationThread(self.controller)
         if self.DEBUG is not True:
-            self.simulation_thread.results_signal.connect(self.draw_bar_chart)
             self.simulation_thread.results_signal.connect(self.update_graph)
         self.simulation_thread.start()
         self.timer.start(100)  # Start the timer to update the GUI every second
 
     def stop_simulation(self):
+        self.graphlayout.submitLayout(None)
         if self.controller:
             self.controller.terminate()
             self.timer.stop()
@@ -273,13 +260,32 @@ class TrafficSimulatorApp(QMainWindow):
 
     def saveData_button_clicked(self):
         if self.controller:
-            self.controller.saveData()
+            default_filename = 'FileName'
+
+            dialog = QInputDialog(self)
+            dialog.setWindowTitle('Save Data')
+            dialog.setLabelText('Enter file name:')
+            dialog.setTextValue(default_filename)
+
+            # 다이얼로그 크기 조정
+            dialog.resize(400, 200)
+            # 폰트 설정
+            font = QFont()
+            font.setPointSize(13)
+            dialog.setFont(font)
+
+            if dialog.exec_() == QInputDialog.Accepted:
+                filename = dialog.textValue()
+                if filename:  # 사용자가 파일 이름을 입력하고 확인을 눌렀을 때
+                    self.controller.saveData(filename)
+                    self.refreshComplist()
 
     def format_filename(self, filename: str) -> str:
-        base_name, timestamp = filename.rsplit('_', 1)
+        *base_parts, base_name, timestamp = filename.rsplit('_', 2)
+        base_filename = '_'.join(base_parts)  # 나머지 부분을 다시 합침
         date_time_obj = datetime.strptime(timestamp, '%Y%m%d%H%M%S')
         formatted_time = date_time_obj.strftime('%Y.%m.%d %H:%M')
-        return f"{base_name} : {formatted_time}"
+        return f"{base_filename} [{base_name} : {formatted_time}]"
 
     def getSavedFileList(self) -> List[Tuple[str, str]]:
         data_files = [f for f in os.listdir('.') if f.endswith('.data')]
@@ -332,7 +338,7 @@ class TrafficSimulatorApp(QMainWindow):
     def update_graph(self, rtinfra):
         #self.draw_filtered_graph(rtinfra, total_results, total_result_comp)
 
-        for pl in self.plotlist.values():
+        for pl in self.graphlayout.getPlotList().values():
             pl.update(rtinfra, self.comparedInfras)
 
 

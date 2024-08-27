@@ -233,17 +233,16 @@ class TrafficSignal:
 
         # 인스턴스 변수로 정의
         self.max_queue_capacities = {
-            0: 107,  # 섹션 0의 최대 대기 차량 수
-            1: 88,  # 섹션 1의 최대 대기 차량 수
-            2: 126,  # 섹션 2의 최대 대기 차량 수
-            3: 119,  # 섹션 3의 최대 대기 차량 수
+            "0": 107,  # 섹션 0의 최대 대기 차량 수
+            "1": 88,  # 섹션 1의 최대 대기 차량 수
+            "2": 80,  # 섹션 2의 최대 대기 차량 수
+            "3": 60,  # 섹션 3의 최대 대기 차량 수
         }
-
         self.max_CO2_emissions = {
-            0: 318,  # 섹션 0의 CO2 최대 배출량
-            1: 394,  # 섹션 1의 CO2 최대 배출량
-            2: 297,  # 섹션 2의 CO2 최대 배출량
-            3: 242,  # 섹션 3의 CO2 최대 배출량
+            '0': 318,  # 섹션 0의 CO2 최대 배출량
+            '1': 394,  # 섹션 1의 CO2 최대 배출량
+            '2': 198,  # 섹션 2의 CO2 최대 배출량
+            '3': 122,  # 섹션 3의 CO2 최대 배출량
         }
         if type(self.reward_fn) is str:
             if self.reward_fn in TrafficSignal.reward_fns.keys():
@@ -347,7 +346,7 @@ class TrafficSignal:
             self.is_yellow = False
 
 
-    def set_next_phase(self, new_phase: int):
+    def set_next_phase (self, new_phase: int):
         """Sets what will be the next green phase and sets yellow phase if the next phase is different than the current.
 
         Args:
@@ -388,28 +387,45 @@ class TrafficSignal:
     def _combined_reward_with_section(self, weight_CO2=0.6, weight_max_vehicles=0.4):
         # 각 세션에 대한 보상 저장
         section_rewards = {}
-
+        section_CO2 = []
+        section_queue =[]
+        new_co2_reward = []
+        new_queue_reward = []
         for section_id, section in self.section_objects.items():
             # 각 섹션의 데이터 수집
             section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
             # print(f"section_id: {section_id}, traffic_signal_traffic_queue: {traffic_queue}",)
             # 섹션별 CO2 배출량에 대한 보상 계산
-            max_CO2_emission = self.max_CO2_emissions.get(int(section_id))
-            print(f"Section {section_id}- co2: {section_co2_emission}, max_co2: {max_CO2_emission}")
-            section_CO2_reward = max(0, 1 - section_co2_emission / max_CO2_emission)
-
+            # max_CO2_emission = self.max_CO2_emissions.get(section_id)
+            print(f"Section {section_id}- co2: {section_co2_emission}")
+            section_CO2_tmp = max(0, 1 - section_co2_emission)
+            section_CO2.append(section_CO2_tmp)
             # 섹션별 대기 큐에 대한 보상 계산
-            max_queue_capacity = self.max_queue_capacities.get(int(section_id))
+            max_queue_capacity = self.max_queue_capacities.get(section_id)
             print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
             normalized_queue = traffic_queue / max_queue_capacity
-            section_queue_reward = max(0, 1 - normalized_queue)
+            section_queue_tmp = max(0, 1 - normalized_queue)
+            section_queue.append(section_queue_tmp)
 
+        new_co2_reward.append(section_CO2[2])
+        new_co2_reward.append(section_CO2[3])
+        new_co2_reward.append(section_CO2[0])
+        new_co2_reward.append(section_CO2[1])
+        new_queue_reward.append(section_queue[2])
+        new_queue_reward.append(section_queue[3])
+        new_queue_reward.append(section_queue[0])
+        new_queue_reward.append(section_queue[1])
+        print(f"new_co2: {new_co2_reward}, new_qeueu: {new_queue_reward}")
+        section_reward = sum(weight_CO2 * co2 for co2 in new_co2_reward) + sum(weight_max_vehicles * queue for queue in new_queue_reward)
+
+        for section_id, section in self.section_objects.items():
             # 가중치를 적용한 섹션별 보상 계산
-            section_reward = (weight_CO2 * section_CO2_reward) + (weight_max_vehicles * section_queue_reward)
+            # section_reward = (weight_CO2 * section_CO2_reward)
             section_rewards[section_id] = section_reward
 
             # 디버깅용 출력
-            print(f"Section {section_id}: CO2 Reward: {section_CO2_reward}, Queue Reward: {section_queue_reward}, Combined Reward: {section_reward}")
+            # print(f"Section {section_id}: CO2 Reward: {section_CO2_reward}")
+            print(f"Section {section_id}: CO2 Reward: {new_co2_reward}, Queue Reward: {new_queue_reward}, Combined Reward: {new_queue_reward}")
 
         # 가장 낮은 보상치를 가진 세션 식별
         worst_section_id = min(section_rewards, key=section_rewards.get)
