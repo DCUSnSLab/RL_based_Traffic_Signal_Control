@@ -1,9 +1,7 @@
 from RunSimulation import RunSimulation
 from stable_baselines3 import DQN
-from typing import Union, List
 import numpy as np
 import traci
-# import torch
 from gymnasium import spaces
 class RunRLBased(RunSimulation):
     def __init__(self, config, name):
@@ -93,6 +91,8 @@ class RunRLBased(RunSimulation):
         # Phase ID (assuming green_phase is an integer and num_green_phases is the total number of phases)
         phase_id = [1 if self.green_phase == i else 0 for i in range(min(self.num_green_phases, 15))]  # One-hot encoding
         min_green = [0 if self.time_since_last_phase_change < self.min_green + self.yellow_time else 1]
+        print(phase_id)
+        print(min_green)
         for section_id, section in self._rtinfra.getSections().items():
             section_co2_emission, _, traffic_queue, _ = section.collect_data()
 
@@ -113,7 +113,12 @@ class RunRLBased(RunSimulation):
             # # print(f"Section {section_id}- nomalized_queue: {self.queue_density}")
             # # print("co2_emissions:", self.co2_emissions)
         # observation = self.co2_density
-        observation = phase_id + min_green + co2_emissions
+        newco2 = []
+        newco2.append(co2_emissions[2])
+        newco2.append(co2_emissions[3])
+        newco2.append(co2_emissions[0])
+        newco2.append(co2_emissions[1])
+        observation = phase_id + min_green + newco2
 
         if len(observation) < 16:
             observation.extend([0] * (16 - len(observation)))

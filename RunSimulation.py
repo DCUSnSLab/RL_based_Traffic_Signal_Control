@@ -114,7 +114,8 @@ class RunSimulation(InfraManager):
             self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
             self._signalControl()
-            #self._refreshSignalPhase()
+            if self.sigTypeName != "Reinforement Learning based Control":
+                self._refreshSignalPhase()
             # print('Green times: ', end='')
 
             self._rtinfra.update()
