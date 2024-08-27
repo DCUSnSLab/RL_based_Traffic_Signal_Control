@@ -14,6 +14,7 @@ class RunSimulation(InfraManager):
 
         self.traffic_light_id = "TLS_0"
         self.isStop = True
+        self.step = 0
 
         self.original_logic = None
         self.logic = None
@@ -102,10 +103,10 @@ class RunSimulation(InfraManager):
 
     def run_simulation(self):
         print('---- start Simulation (signController : ',self.sigTypeName, ") ----")
-        step = 0
+        self.step = 0
         self.isStop = False
 
-        while not self.isStop and step <= 11700:
+        while not self.isStop and self.step <= 11700:
             #start_time = time.time()
             traci.simulationStep()
 
@@ -113,12 +114,13 @@ class RunSimulation(InfraManager):
             self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
             self._signalControl()
-            self._refreshSignalPhase()
+            if self.sigTypeName != "Reinforement Learning based Control":
+                self._refreshSignalPhase()
             # print('Green times: ', end='')
 
             self._rtinfra.update()
 
-            step += 1
+            self.step += 1
 
         self.isStop = True
         traci.close()
