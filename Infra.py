@@ -40,12 +40,14 @@ class SMUtil:
     MPStoKPH = 3.6
     secPerHour = 3600
     sec = 1
+    interval = 10
 
 class SECTION_RESULT(Enum):
     TIME = 'Time'
     SECTIONID = 'Sectionid'
-    CO2_EMISSION = 'Section_CO2_Emission'
+    SECTION_CO2 = 'Section_CO2_Emission'
     VOLUME = 'Section_Volume'
+    SPEED_INT = 'Section Speed by Interval'
     TRAFFIC_QUEUE = 'traffic_queue'
     GREEN_TIME = 'green_time'
     DIRECTION = 'direction'
@@ -53,6 +55,7 @@ class SECTION_RESULT(Enum):
 class TOTAL_RESULT(Enum):
     TIME = 'Time'
     TOTAL_CO2 = 'Total CO2'
+    TOTAL_CO2_ACC = 'Total CO2 ACC'
     TOTAL_VOLUME = 'TOtal Volume'
 
 def get_input_station_value(direction: Direction) -> str:
@@ -178,10 +181,12 @@ class Station:
 
         self.volumes = deque()
         self.speeds = deque()
+        self.speeds_int = deque()
         self.exitVolumes = deque()
         self.append_volumes = self.volumes.append
         self.append_exitVolume = self.exitVolumes.append
         self.append_speeds = self.speeds.append
+        self.append_speeds_int = self.speeds_int.append
 
         self.__define_direction()
 
@@ -207,6 +212,15 @@ class Station:
             return self.speeds[-1]
         else:
             return -1
+
+    def getSpeedInt(self):
+        if len(self.speeds_int) > 0:
+            return self.speeds_int[-1]
+        else:
+            return -1
+
+    def getSpeedInts(self):
+        return self.speeds_int
 
     def getExitVolume(self):
         if len(self.exitVolumes) > 0:
@@ -253,16 +267,27 @@ class SStation(Station):
         # if self.id == '020018' or self.id == '020018':
         #     print('--station id',self.id, self.inputVeh)
 
-        speed = 0 if volume == 0 else speed / volume
+        speed = -1 if volume == 0 else speed / volume
         volume = volume if volume == 0 or volume < len(self.inputVeh) else len(self.inputVeh)
         exitVolume = exitVolume if exitVolume == 0 or exitVolume < len(self.exitVeh) else len(self.exitVeh)
 
         self.append_volumes(volume)
         self.append_speeds(speed)
         self.append_exitVolume(exitVolume)
-        # if self.id == '020000' or self.id == '120026':
-        #     print('station id',self.id,', volume: ',self.getVolume(), ' speed: ',self.getSpeed(), (self.getSpeed() * SMUtil.MPStoKPH))
-        #     #print('station id : ', self.id, 'iv: ',self.inputVeh, 'ev: ', self.exitVeh)
+
+        # calculate speed_int
+        scnt = len(self.speeds)
+        if scnt != 0 and scnt % SMUtil.interval == 0:
+            last_interval_speeds = list(self.speeds)[-SMUtil.interval:]
+            valid_speeds = [s for s in last_interval_speeds if s != -1]
+
+            # 유효한 속도의 개수
+            valid_count = len(valid_speeds)
+            average_speed = sum(valid_speeds) / valid_count if valid_count > 0 else 0
+            self.append_speeds_int(average_speed)
+        # if self.id == '020018':
+        #     print('station id',self.id,', volume: ',self.getVolume(), ' speed: ',len(self.speeds_int), (self.getSpeedInt() * SMUtil.MPStoKPH))
+        # #     #print('station id : ', self.id, 'iv: ',self.inputVeh, 'ev: ', self.exitVeh)
 
     def getVehicleData(self):
         return list(self.inputVeh), list(self.exitVeh)
@@ -291,20 +316,23 @@ class Section:
         self.__time = deque()
         self.__section_co2 = deque()
         self.__section_volumes = deque()
+        self.__section_speedint = deque()
         self.__section_queues = deque()
         self._section_greentime = deque()
         self.append_section_time = self.__time.append
         self.append_section_co2 = self.__section_co2.append
         self.append_section_volumes = self.__section_volumes.append
+        self.append_section_speedint = self.__section_speedint.append
         self.append_section_queues = self.__section_queues.append
         self.append_section_greentime = self._section_greentime.append
 
         self.dataDic = dict()
         self.dataDic[SECTION_RESULT.TIME] = self.__time
-        self.dataDic[SECTION_RESULT.CO2_EMISSION] = self.__section_co2
+        self.dataDic[SECTION_RESULT.SECTION_CO2] = self.__section_co2
         self.dataDic[SECTION_RESULT.TRAFFIC_QUEUE] = self.__section_queues
         self.dataDic[SECTION_RESULT.GREEN_TIME] = self._section_greentime
         self.dataDic[SECTION_RESULT.VOLUME] = self.__section_volumes
+        self.dataDic[SECTION_RESULT.SPEED_INT] = self.__section_speedint
         self.__define_direction()
 
     def __define_direction(self):
@@ -401,6 +429,10 @@ class SSection(Section):
         section_co2_emission = 0
         section_volume = 0
         removal_veh = list()
+        speedcnt = 0
+        pscnt = len(self.getDatabyID(SECTION_RESULT.SPEED_INT))
+        isspeedadded = False
+        speedsum = 0
         for i, station in enumerate(self.stations):
             #update station data
             station.update()
@@ -415,10 +447,23 @@ class SSection(Section):
 
             self.traffic_queue -= station.getExitVolume()
             self.section_vehicles.difference_update(station.getExitVehIds())
+
+            scnt = len(station.getSpeedInts())
+
+            if i == 0 and scnt > pscnt:
+                isspeedadded = True
+                sspeed = station.getSpeedInt()
+                if sspeed != -1 :
+                    speedsum += station.getSpeedInt()
+                    speedcnt += 1
             # if self.id == '2':
             #     if station.getExitVolume() > 0:
             #         print('----exit vol : ',station.getExitVolume())
 
+        #calculate average speed
+        if isspeedadded is True:
+            average_speed_int = speedsum / speedcnt * SMUtil.MPStoKPH
+            self.append_section_speedint(average_speed_int)
         for vehicle in self.section_vehicles:
             try:
                 if traci.vehicle.getCO2Emission(vehicle) >= 0:
@@ -437,7 +482,7 @@ class SSection(Section):
         self.updateGreentime()
         # if self.id == '2':
         #     print('Sid : ',self.id, ', Queue : ')
-        #     print('---- VehIds : ', self.section_vehicles)
+        #     print('---- speedint : ', self.getDatabyID(SECTION_RESULT.SPEED_INT))
         #self.collect_data()
     def print(self):
         print('this is SSection!!')
@@ -463,13 +508,16 @@ class Infra:
 
         self.__time = deque()
         self.__totalCO2 = deque()
+        self.__totalCO2ACC = deque()
         self.__totalVolume = deque()
         self.append_time = self.__time.append
         self.append_totalCO2 = self.__totalCO2.append
+        self.append_totalCO2ACC = self.__totalCO2ACC.append
         self.append_totalVolume = self.__totalVolume.append
         self.dataDic = {}
         self.dataDic[TOTAL_RESULT.TIME] = self.__time
         self.dataDic[TOTAL_RESULT.TOTAL_CO2] = self.__totalCO2
+        self.dataDic[TOTAL_RESULT.TOTAL_CO2_ACC] = self.__totalCO2ACC
         self.dataDic[TOTAL_RESULT.TOTAL_VOLUME] = self.__totalVolume
 
         self.sigType: str = sigtype
@@ -478,6 +526,7 @@ class Infra:
 
     def update(self):
         totalCO2 = 0
+        totalCO2ACC = 0
         totalVol = 0
         time = traci.simulation.getTime()
         for section_id, section in self.getSections().items():
@@ -489,9 +538,10 @@ class Infra:
         # for vehicle_id in vehicle_ids:
         #     totalCO2 += traci.vehicle.getCO2Emission(vehicle_id) / 1000
 
-        totalCO2 = self.__totalCO2[-1] + totalCO2 if len(self.__totalCO2) > 0 else totalCO2
+        totalCO2ACC = self.__totalCO2ACC[-1] + totalCO2 if len(self.__totalCO2ACC) > 0 else totalCO2
         totalVol = self.__totalVolume[-1] + totalVol if len(self.__totalVolume) > 0 else totalVol
         self.append_totalCO2(totalCO2)
+        self.append_totalCO2ACC(totalCO2ACC)
         self.append_totalVolume(totalVol)
         self.append_time(time)
 
