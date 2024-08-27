@@ -21,6 +21,8 @@ class PLOTMODE(Enum):
     SECTIONSPEEDINT = (lambda: PlotSection('Section Speed by Interval('+str(SMUtil.interval)+'s)', 'Time(every '+str(SMUtil.interval)+'s)', 'Speed(km/h)', SECTION_RESULT.SPEED_INT,ismoving=False, interval=100), SECTION_RESULT.SPEED_INT.name)
     TOTALCO2 = (lambda: PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2), TOTAL_RESULT.TOTAL_CO2.name)
     TOTALVOLUMEACC = (lambda: PlotInfra('Accumulative Total Volume', 'Time(s)', 'Volumes(Number of Vehicles)', TOTAL_RESULT.TOTAL_VOLUME), TOTAL_RESULT.TOTAL_VOLUME.name)
+    VOLUMESECTION = (lambda: PlotSection('Volume by Bound', 'Time(s)', 'number of vehicle', SECTION_RESULT.VOLUME),
+                     SECTION_RESULT.VOLUME.name)
     @classmethod
     def from_string(cls, result):
         for mode in cls:
