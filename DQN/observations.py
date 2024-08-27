@@ -73,7 +73,7 @@ class DefaultObservationFunction(ObservationFunction):
             max_queue_capacity = self.max_queue_capacities.get(section_id)
             print(f"ob_Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
             normalized_queue = traffic_queue / max_queue_capacity
-            queue_density.append(normalized_queue)
+            queue_density.append(max(0, normalized_queue))
             print(f"ob_Section {section_id}- nomalized_queue: {queue_density}")
 
         new_co2.append(co2_density[2])

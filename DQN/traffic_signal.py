@@ -383,53 +383,52 @@ class TrafficSignal:
     def _average_speed_reward(self):
         return self.get_average_speed()
 
-
-    def _combined_reward_with_section(self, weight_CO2=0.6, weight_max_vehicles=0.4):
+    def _combined_reward_with_section(self, weight_CO2=0.6, weight_traffic_queue=0.4):
         # 각 세션에 대한 보상 저장
         section_rewards = {}
         section_CO2 = []
-        section_queue =[]
-        new_co2_reward = []
-        new_queue_reward = []
+        section_queue = []
+
         for section_id, section in self.section_objects.items():
             # 각 섹션의 데이터 수집
             section_co2_emission, section_volume, traffic_queue, section_vehicles = section.collect_data()
-            # print(f"section_id: {section_id}, traffic_signal_traffic_queue: {traffic_queue}",)
+
             # 섹션별 CO2 배출량에 대한 보상 계산
-            # max_CO2_emission = self.max_CO2_emissions.get(section_id)
             print(f"Section {section_id}- co2: {section_co2_emission}")
-            section_CO2.append(section_co2_emission)
+            section_CO2.append(weight_CO2 * section_co2_emission)
+
             # 섹션별 대기 큐에 대한 보상 계산
             max_queue_capacity = self.max_queue_capacities.get(section_id)
             print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
-            normalized_queue = traffic_queue / max_queue_capacity
+            normalized_queue = weight_traffic_queue * (traffic_queue / max_queue_capacity)
             section_queue.append(normalized_queue)
-        new_co2_reward.append(section_CO2[2])
-        new_co2_reward.append(section_CO2[3])
-        new_co2_reward.append(section_CO2[0])
-        new_co2_reward.append(section_CO2[1])
-        new_queue_reward.append(section_queue[2])
-        new_queue_reward.append(section_queue[3])
-        new_queue_reward.append(section_queue[0])
-        new_queue_reward.append(section_queue[1])
-        print(f"new_co2: {new_co2_reward}, new_qeueu: {new_queue_reward}")
-        section_reward = sum(weight_CO2 * co2 for co2 in new_co2_reward) + sum(weight_max_vehicles * queue for queue in new_queue_reward)
 
-        for section_id, section in self.section_objects.items():
+        new_co2_reward = [section_CO2[i] for i in range(len(section_CO2))]
+        new_queue_reward = [section_queue[i] for i in range(len(section_queue))]
+
+        section_ids = list(self.section_objects.keys())
+        ordered_section_ids = [section_ids[i] for i in [2, 3, 0, 1]]
+
+        ordered_co2_rewards = [new_co2_reward[section_ids.index(id)] for id in ordered_section_ids]
+        ordered_queue_rewards = [new_queue_reward[section_ids.index(id)] for id in ordered_section_ids]
+
+        print(f"ordered_co2: {ordered_co2_rewards}, ordered_queue: {ordered_queue_rewards}")
+
+        for idx, section_id in enumerate(ordered_section_ids):
             # 가중치를 적용한 섹션별 보상 계산
-            # section_reward = (weight_CO2 * section_CO2_reward)
-            section_rewards[section_id] = section_reward
+            section_reward = ordered_co2_rewards[idx] + ordered_queue_rewards[idx]
+            # agent가 보상값 중 가장 나쁜 보상값을 해결하기 위해 음수로 설정
+            section_rewards[section_id] = -section_reward
 
             # 디버깅용 출력
-            # print(f"Section {section_id}: CO2 Reward: {section_CO2_reward}")
-            print(f"Section {section_id}: CO2 Reward: {new_co2_reward}, Queue Reward: {new_queue_reward}, Combined Reward: {new_queue_reward}")
+            print(
+                f"Section {section_id}: CO2 Reward: {ordered_co2_rewards[idx]}, Queue Reward: {ordered_queue_rewards[idx]}, Combined Reward: {section_reward}")
 
         # 가장 낮은 보상치를 가진 세션 식별
         worst_section_id = min(section_rewards, key=section_rewards.get)
         worst_section_reward = section_rewards[worst_section_id]
 
         # 보상 값 확인
-
         print(f"Section Rewards: {section_rewards}")
         print(f"Worst Section: {worst_section_id} with Reward: {worst_section_reward}")
         print("%#%" * 30)
