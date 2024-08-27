@@ -65,16 +65,16 @@ class DefaultObservationFunction(ObservationFunction):
 
             # self.queue = [traffic_queue] if isinstance(traffic_queue, int) else traffic_queue
             max_CO2_emission = self.max_CO2_emissions.get(section_id)
-            print(f"Section {section_id}- co2: {section_co2_emission}, max_co2: {max_CO2_emission}")
-            co2_density.append(max(0, 1 - section_co2_emission))
-            print(f"Section {section_id}- nomalized_co2: {co2_density}")
+            print(f"ob_Section {section_id}- co2: {section_co2_emission}, max_co2: {max_CO2_emission}")
+            co2_density.append(max(0, section_co2_emission))
+            print(f"ob_Section {section_id}- nomalized_co2: {co2_density}")
 
 
             max_queue_capacity = self.max_queue_capacities.get(section_id)
-            print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
+            print(f"ob_Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
             normalized_queue = traffic_queue / max_queue_capacity
-            queue_density.append(max(0, 1 - normalized_queue))
-            print(f"Section {section_id}- nomalized_queue: {queue_density}")
+            queue_density.append(normalized_queue)
+            print(f"ob_Section {section_id}- nomalized_queue: {queue_density}")
 
         new_co2.append(co2_density[2])
         new_co2.append(co2_density[3])
@@ -91,8 +91,8 @@ class DefaultObservationFunction(ObservationFunction):
         # observation = phase_id + min_green + co2_density +queue_density
         # observation = phase_id + min_green + self.co2_emissions + self.queue
         print("pre_observation: ", observation)
-        if len(observation) < 16:
-            observation.extend([0] * (16 - len(observation)))
+        if len(observation) < 13:
+            observation.extend([0] * (13 - len(observation)))
 
         observation = np.array(observation, dtype=np.float32)
         print("observation: ", observation)
@@ -101,6 +101,6 @@ class DefaultObservationFunction(ObservationFunction):
     def observation_space(self) -> spaces.Box:
         """Return the observation space."""
         return spaces.Box(
-            low=np.zeros(16, dtype=np.float32),
-            high=np.ones(16, dtype=np.float32),
+            low=np.zeros(13, dtype=np.float32),
+            high=np.ones(13, dtype=np.float32),
         )

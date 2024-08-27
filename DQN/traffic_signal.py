@@ -398,15 +398,12 @@ class TrafficSignal:
             # 섹션별 CO2 배출량에 대한 보상 계산
             # max_CO2_emission = self.max_CO2_emissions.get(section_id)
             print(f"Section {section_id}- co2: {section_co2_emission}")
-            section_CO2_tmp = max(0, 1 - section_co2_emission)
-            section_CO2.append(section_CO2_tmp)
+            section_CO2.append(section_co2_emission)
             # 섹션별 대기 큐에 대한 보상 계산
             max_queue_capacity = self.max_queue_capacities.get(section_id)
             print(f"Section {section_id}- traffic_queue: {traffic_queue}, max_queue_capacity: {max_queue_capacity}")
             normalized_queue = traffic_queue / max_queue_capacity
-            section_queue_tmp = max(0, 1 - normalized_queue)
-            section_queue.append(section_queue_tmp)
-
+            section_queue.append(normalized_queue)
         new_co2_reward.append(section_CO2[2])
         new_co2_reward.append(section_CO2[3])
         new_co2_reward.append(section_CO2[0])
