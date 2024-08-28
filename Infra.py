@@ -548,6 +548,8 @@ class SSection(Section):
 
         self.section_vehicles.difference_update(removal_veh)
 
+        self.append_section_maxaccel(max_accel)
+        self.append_section_minaccel(min_accel)
         self.append_section_queues(self.traffic_queue)
         self.append_section_co2(section_co2_emission)
         self.append_section_volumes(section_volume)
