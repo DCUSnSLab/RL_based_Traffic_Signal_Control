@@ -50,7 +50,7 @@ class TrafficSimulatorApp(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("Traffic Simulator Visualization")
-        self.setGeometry(0, 0, 1280, 720)
+        self.setGeometry(0, 0, 1280, 1000)
 
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)

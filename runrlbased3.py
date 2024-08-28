@@ -2,7 +2,7 @@ import traci
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 
-from Infra import Config_SUMO, Infra, TOTAL_RESULT
+from Infra import Config_SUMO, Infra, TOTAL_RESULT, SSection
 from RunSimulation import RunSimulation
 from sumo_rl import SumoEnvironment
 import numpy as np
@@ -30,8 +30,7 @@ class CustomSumoEnvironment(SumoEnvironment):
         self.sumo.simulationStep()
         self._cust_infra.update()
         self._cust_step += 1
-        totalr = TOTAL_RESULT.TOTAL_CO2_ACC.name
-        print('step = ', self._cust_step,' TOTAL CO2:', self._cust_infra.getTotalCO2mg())
+
 
 class CO2ObservationFunction(ObservationFunction):
     """CO2-based observation function for traffic signals."""
@@ -70,16 +69,15 @@ class EveryStepCallback(BaseCallback):
         super(EveryStepCallback, self).__init__(verbose)
 
     def _on_step(self) -> bool:
-        if self.verbose > 0:
-            print(f"Step: {self.num_timesteps}, Reward: {self.locals['rewards'][-1]}")
+        # if self.verbose > 0:
+        #     print(f"Step: {self.num_timesteps}, Reward: {self.locals['rewards'][-1]}")
         return True
 
 class RunRLBased3(RunSimulation):
     def __init__(self, config, name):
         super().__init__(config, 'RL_DQL', isExternalSignal=True)
-        print('L init1')
         self.model = DQN.load("dqn_legacy_episode_100.zip")
-
+        self.prevAction = -1
         self.env = CustomSumoEnvironment(
             net_file=self.config.scenario_file_rl,
             single_agent=True,
@@ -92,9 +90,27 @@ class RunRLBased3(RunSimulation):
             #observation_class=CO2ObservationFunction,
             simInfra=self.getInfra()
         )
-        print('L init2')
     def preinit(self):
         pass
+
+    def setSectionSignal(self, action):
+        #E(2) W(3) S(0) N(1)
+        #S N E W
+        bCorrection = [2, 3, 0 ,1]
+        program = traci.trafficlight.getAllProgramLogics('TLS_0')[0]
+        sections = self.getInfra().getSections()
+        if self.prevAction == action:
+            current_dur = sections[str(bCorrection[action])].getCurrentGreenTime() + self.env.delta_time
+        else:
+            current_dur = self.env.delta_time
+
+        sections[str(bCorrection[action])].setGreenTime(current_dur, None)
+        self.prevAction = action
+
+        # for i, phase in enumerate(program.phases):
+        #     if i > 3:
+        #         break
+        #     print(f"Phase {i}: Duration = {phase.duration} seconds, State = {phase.state}, {action}")
 
     def run_simulation(self):
         obs, _ = self.env.reset()
@@ -102,11 +118,14 @@ class RunRLBased3(RunSimulation):
         total_reward = 0
         step = 0
         maxstep = 11700 / self.env.delta_time
+        self.isStop = False
 
-        while step <= maxstep:
+        while self.isStop is not True and step <= maxstep:
             action, _states = self.model.predict(obs, state=None, deterministic=False)
             obs, reward, done, truncated, info = self.env.step(action)
             total_reward += reward
             step += 1
+            self.setSectionSignal(action)
 
-        print(f"Total CO2 Emission Reward: {total_reward}")
+        self.isStop = True
+        traci.close()

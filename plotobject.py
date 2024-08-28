@@ -29,14 +29,16 @@ class PLOTMODE(Enum):
         raise ValueError(f"{result} is not a valid SignalMode value")
 
 class PlotObject():
-    def __init__(self, title, l_bottom, l_left, useComp=False, compInfra: List[Infra]=None, ismoving=False, interval=500, isTimeInterval=False):
+    def __init__(self, title, l_bottom, l_left, sel_data, useComp=False, compInfra: List[Infra]=None, ismoving=False, interval=500, isTimeInterval=False):
         self._title = title
         self.__label_bottom = l_bottom
         self.__label_left = l_left
+        self._sel_data: SECTION_RESULT = sel_data
         self._isMoving = ismoving
         self._movingInterval = interval
         self._isTimeInterval = isTimeInterval
         self._ymax = 0
+        self._ymin = 0
 
         self._plotwidget: PlotWidget = None
         self._plots = []
@@ -45,7 +47,7 @@ class PlotObject():
         self.isCompAdded = False
         self.useComp = useComp
 
-        self.colorset = ('r', 'g', 'b', 'c') #SB, NB, EB, WB
+        self.colorset = ('r', 'g', 'b', (255, 204, 0)) #SB, NB, EB, WB
 
 
         self.__initUI()
@@ -68,19 +70,28 @@ class PlotObject():
     def getYMax(self):
         return self._ymax
 
-    def setPlotYRange(self, min, max):
-        self._plotwidget.plotItem.setYRange(min, max)
-        self._ymax = max#self._plotwidget.plotItem.viewRange()[1][1]
+    def setPlotYRange(self, data):
+        if len(data) > 0:
+            data = np.array(data)
+            min_v = np.min(data)
+            max_v = np.max(data)
+            self._ymax = max(self._ymax, max_v)
+            self._ymin = min(self._ymin, min_v)
+            self._plotwidget.plotItem.setYRange(self._ymin, self._ymax)
 
     def setLabelPos(self, x, y_max):
-        d_gap = (y_max-10) * 0.07
-        y_max -= d_gap
+        d_gap = (y_max) * 0.1
+        #y_max -= d_gap
         for label in self._labels:
             label.setPos(x, y_max)
             y_max -= d_gap
 
     def addPlot(self, name='default', color='black'):
-        self._plots.append(self._plotwidget.plot(pen=color))
+        if self._sel_data != SECTION_RESULT.GREEN_TIME:
+            self._plots.append(self._plotwidget.plot(pen=color))
+        else:
+            self._plots.append(self._plotwidget.plot(pen=None, symbol='o', symbolSize=3, symbolBrush=color, symbolPen=None))
+
         color_str = f"RGB{color}"
         #add label
         label = pg.TextItem(text='── ' + name + ' (' + color_str + ')',color=color)
@@ -109,18 +120,42 @@ class PlotObject():
     def setLabelText(self, idx, name):
         self._labels[idx].setPlainText(name)
 
-    def low_pass_filter(self, data, cutoff=0.2, fs=1.0, order=1):
-        if len(data) <= 9:  # 필터의 padlen보다 작은 경우
+    def low_pass_filter(self, data, cutoff=0.05, fs=1.0, order=8):
+        if len(data) <= 15:  # 필터의 padlen보다 작은 경우
             return data  # 필터링을 건너뛰고 원래 데이터를 반환
         nyq = 0.5 * fs  # Nyquist Frequency
         normal_cutoff = cutoff / nyq
         b, a = butter(order, normal_cutoff, btype='low', analog=False)
-        y = filtfilt(b, a, data, padlen=3)  # padlen 값을 줄여서 설정
+        y = filtfilt(b, a, data, padlen=5)  # padlen 값을 줄여서 설정
         return y
+
+    def moving_average(self, data, window_size=None):
+        dsize = len(data)
+        if window_size is None:
+            window_size = max(1, int(dsize * 0.05))
+
+        if len(data) < window_size:
+            return data  # 데이터가 창 크기보다 작으면 필터링을 건너뜁니다.
+        return np.convolve(data, np.ones(window_size) / window_size, mode='same')
 
     def updateLabels(self, xmin=0):
         #y_max = self._plotwidget.plotItem.viewRange()[1][1]
         self.setLabelPos(xmin, self._ymax)
+
+    def trimData(self, time, raw):
+        a = np.array(time)
+        b = np.array(raw)
+
+        if len(a) == 0 or len(b) == 0:
+            return a, b
+        else:
+            # 두 배열 중 더 짧은 길이 찾기
+            min_length = min(len(a), len(b))
+
+            # 더 짧은 길이에 맞춰 자르기
+            a_trimmed = a[:min_length]
+            b_trimmed = b[:min_length]
+            return a_trimmed, b_trimmed
 
     def updatePlot(self):
         pass
@@ -146,11 +181,10 @@ class PlotObject():
 
 class PlotSection(PlotObject):
     def __init__(self, title, l_bottom, l_left, sel_data, ismoving=False, interval=500, istimeinterval=False):
-        super().__init__(title, l_bottom, l_left, useComp=False, ismoving=ismoving, interval=interval, isTimeInterval=istimeinterval)
+        super().__init__(title, l_bottom, l_left, sel_data, useComp=False, ismoving=ismoving, interval=interval, isTimeInterval=istimeinterval)
         self.sectionColor = {}
         self.__initSectionColor()
         self.__initSectionplot()
-        self.__sel_data: SECTION_RESULT = sel_data
 
     def __initSectionColor(self):
         for i, dr in enumerate(Direction):
@@ -165,38 +199,39 @@ class PlotSection(PlotObject):
         sections = self.rtinfra.getSections()
         time_data = None#self.rtinfra.getTime()
         data = None
-        maxv = 0
         for i, plot in enumerate(self._plots):
             if self._isTimeInterval is False:
                 time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIME)
             else:
                 time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIMEINT)
 
-            rawdata = sections[str(i)].getDatabyID(self.__sel_data)
+            rawdata = sections[str(i)].getDatabyID(self._sel_data)
             if self._isMoving is True:
                 time_data = list(time_data)[-self._movingInterval:]
                 rawdata = list(rawdata)[-self._movingInterval:]
 
-            data = self.low_pass_filter(rawdata)
+            time_data, rawdata = self.trimData(time_data, rawdata)
+
+            if self._sel_data != SECTION_RESULT.GREEN_TIME:
+                #rawdata = self.low_pass_filter(rawdata)
+                rawdata = self.moving_average(rawdata)
 
             # min_length = min(len(time_data), len(data))
             # time_data = list(time_data)[:min_length]
             # data = list(data)[:min_length]
 
-            plot.setData(time_data, data)
-            m = max(rawdata)
-            maxv = m if m > maxv else maxv
-            self.setPlotYRange(min(min(data), 0), maxv)
+            plot.setData(time_data, rawdata)
+            self.setPlotYRange(rawdata)
             #self._plotwidget.plotItem.setYRange(min(min(data), 0), max(data)+)
 
         if self._isMoving is True:
             self._plotwidget.plotItem.setXRange(max(time_data[-1] - self._movingInterval, 0), time_data[-1])
             self.updateLabels(max(time_data[-1] - self._movingInterval, 0))
 
+
 class PlotInfra(PlotObject):
     def __init__(self, title, l_bottom, l_left, sel_data, selType=None, compinfra=None, ismoving=False, istimeinterval=False):
-        super().__init__(title, l_bottom, l_left, True, compinfra, ismoving, isTimeInterval=istimeinterval)
-        self.__sel_data: TOTAL_RESULT = sel_data
+        super().__init__(title, l_bottom, l_left, sel_data, True, compinfra, ismoving, isTimeInterval=istimeinterval)
         self.__selType = selType
         self.colorset = ('g','b','c')
         self.addCompPlot(self._compInfra)
@@ -204,27 +239,35 @@ class PlotInfra(PlotObject):
 
     def updatePlot(self):
         time_data = self.rtinfra.getTime()
-        data = self.rtinfra.getDatabyID(self.__sel_data)
+        data = self.rtinfra.getDatabyID(self._sel_data)
 
-        if self.__sel_data == TOTAL_RESULT.TOTAL_CO2 or self.__sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
+        if self._sel_data == TOTAL_RESULT.TOTAL_CO2 or self._sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
             data = np.array(data) / 1000
 
         # min_length = min(len(time_data), len(data))
         # time_data = list(time_data)[:min_length]
         # data = list(data)[:min_length]
 
-        self._plots[-1].setData(time_data, data)
+        time_data, rawdata = self.trimData(time_data, data)
+        if self._sel_data == TOTAL_RESULT.TOTAL_CO2:
+            rawdata = self.low_pass_filter(rawdata)
+        self._plots[-1].setData(time_data, rawdata)
+        self.setPlotYRange(data)
 
+        compinfra = None
         if self._compInfra is not None:
             for i, ci in enumerate(self._compInfra):
                 comptime = ci.getTime()
-                compinfra = ci.getDatabyID(self.__sel_data) if ci is not None else 0
+                compinfra = ci.getDatabyID(self._sel_data) if ci is not None else 0
 
-                if self.__sel_data == TOTAL_RESULT.TOTAL_CO2  or self.__sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
+                if self._sel_data == TOTAL_RESULT.TOTAL_CO2  or self._sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
                     compinfra = np.array(compinfra) / 1000
 
                 # min_length = min(len(comptime), len(compinfra))
                 # comptime = list(comptime)[:min_length]
                 # compinfra = list(compinfra)[:min_length]
-
+                comptime, compinfra = self.trimData(comptime, compinfra)
+                if self._sel_data == TOTAL_RESULT.TOTAL_CO2:
+                    compinfra = self.low_pass_filter(compinfra)
                 self._plots[i].setData(comptime, compinfra)
+                self.setPlotYRange(compinfra)

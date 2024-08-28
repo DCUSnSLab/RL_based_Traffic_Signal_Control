@@ -387,6 +387,12 @@ class Section:
         else:
             return 0
 
+    def getCurrentSpeedInt(self):
+        if len(self.__section_speedint) > 0:
+            return self.__section_speedint[-1]
+        else:
+            return 0
+
     def getCurrentTime(self):
         if len(self.__time) > 0:
             return self.__time[-1]
@@ -424,7 +430,8 @@ class SSection(Section):
 
     def setGreenTime(self, greetime, logic):
         self.current_greentime = greetime
-        self.__setSignalGreenTime(greetime, logic)
+        if logic is not None:
+            self.__setSignalGreenTime(greetime, logic)
 
     def updateGreentime(self):
         if self.current_greentime != -1:
@@ -447,6 +454,7 @@ class SSection(Section):
         pscnt = len(self.getDatabyID(SECTION_RESULT.SPEED_INT))
         isspeedadded = False
         speedsum = 0
+        numofstation = len(self.stations) - 1
         for i, station in enumerate(self.stations):
             #update station data
             station.update()
@@ -464,7 +472,7 @@ class SSection(Section):
 
             scnt = len(station.getSpeedInts())
 
-            if i == 0 and scnt > pscnt:
+            if i < numofstation and scnt > pscnt:
                 isspeedadded = True
                 sspeed = station.getSpeedInt()
                 if sspeed != -1 :
@@ -477,6 +485,7 @@ class SSection(Section):
         #calculate average speed
         if isspeedadded is True:
             average_speed_int = speedsum / speedcnt * SMUtil.MPStoKPH
+            #average_speed_int = self.getCurrentSpeedInt() if average_speed_int < 0.1 else average_speed_int * SMUtil.MPStoKPH
             self.append_section_speedint(average_speed_int)
             self.append_section_timeint(time)
 
