@@ -1516,16 +1516,16 @@
         <lane id="E99_4" index="4" speed="22.22" length="48.30" shape="-444.79,-386.33 -486.73,-410.29"/>
     </edge>
 
-	<tlLogic id="TLS_0" type="static" programID="0" offset="150">
-		<phase duration="35" state="rrrrrrrrrrrgggg"/>
-		<phase duration="5"  state="rrrrrrrrrrryyyy"/>
-		<phase duration="33" state="rrrrggggrrrrrrr"/>
-		<phase duration="5"  state="rrrryyyyrrrrrrr"/>
-		<phase duration="37" state="ggggrrrrrrrrrrr"/>
-		<phase duration="5"  state="yyyyrrrrrrrrrrr"/>
-		<phase duration="55" state="rrrrrrrrgggrrrr"/>
-		<phase duration="5"  state="rrrrrrrryyyrrrr"/>
-	</tlLogic>
+   <tlLogic id="TLS_0" type="static" programID="0" offset="150">
+      <phase duration="35" state="rrrrrrrrrrrgggg"/>
+      <phase duration="5"  state="rrrrrrrrrrryyyy"/>
+      <phase duration="33" state="rrrrggggrrrrrrr"/>
+      <phase duration="5"  state="rrrryyyyrrrrrrr"/>
+      <phase duration="37" state="ggggrrrrrrrrrrr"/>
+      <phase duration="5"  state="yyyyrrrrrrrrrrr"/>
+      <phase duration="55" state="rrrrrrrrgggrrrr"/>
+      <phase duration="5"  state="rrrrrrrryyyrrrr"/>
+   </tlLogic>
 
     <junction id="J0" type="priority" x="-19.59" y="429.47" incLanes="E5_0 E5_1 E5_2 E5_3 E5_4 E5_5 E5_6" intLanes=":J0_0_0 :J0_0_1 :J0_0_2 :J0_0_3 :J0_0_4 :J0_0_5" shape="-40.16,439.13 -18.57,433.17 -20.50,425.76 -39.15,430.34 -39.20,433.58 -39.70,434.75 -40.19,435.91 -40.42,437.30">
         <request index="0" response="000000" foes="000000" cont="0"/>

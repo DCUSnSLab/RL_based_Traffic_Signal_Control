@@ -63,10 +63,14 @@ class InfraManager():
         volume_df = df.pivot(index='Time', columns='Section', values='Section_Volume')
         queue_df = df.pivot(index='Time', columns='Section', values='traffic_queue')
         greentime_df = df.pivot(index='Time', columns='Section', values='green_time')
-        with pd.ExcelWriter(file_name+'section_results.xlsx') as writer:
+        MaxAccel_df = df.pivot(index='Time', columns='Section', values='Section_Max_Accel')
+        MaxDecel_df = df.pivot(index='Time', columns='Section', values='Section_Max_Decel')
+        with pd.ExcelWriter(file_name + 'section_results.xlsx') as writer:
             co2_emission_df.to_excel(writer, sheet_name='Section_CO2_Emission')
             volume_df.to_excel(writer, sheet_name='Section_Volume')
             queue_df.to_excel(writer, sheet_name='traffic_queue')
-            greentime_df.to_excel(writer, sheet_name='traffic_queue')
+            greentime_df.to_excel(writer, sheet_name='green_time')
+            MaxAccel_df.to_excel(writer, sheet_name='Section_Max_Accel')
+            MaxDecel_df.to_excel(writer, sheet_name='Section_Max_Decel')
 
         print("Maked Excel")
