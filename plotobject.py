@@ -209,9 +209,9 @@ class PlotInfra(PlotObject):
         if self.__sel_data == TOTAL_RESULT.TOTAL_CO2 or self.__sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
             data = np.array(data) / 1000
 
-        min_length = min(len(time_data), len(data))
-        time_data = list(time_data)[:min_length]
-        data = list(data)[:min_length]
+        # min_length = min(len(time_data), len(data))
+        # time_data = list(time_data)[:min_length]
+        # data = list(data)[:min_length]
 
         self._plots[-1].setData(time_data, data)
 

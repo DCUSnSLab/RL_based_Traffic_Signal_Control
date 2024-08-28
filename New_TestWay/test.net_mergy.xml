@@ -1,38 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2024-08-14 19:12:04 by Eclipse SUMO netedit Version 1.18.0
-<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/neteditConfiguration.xsd">
-
-    <input>
-        <sumo-net-file value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test.net.xml"/>
-    </input>
-
-    <output>
-        <output-file value="C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\New_TestWay\test.net.xml"/>
-    </output>
-
-    <processing>
-        <geometry.min-radius.fix.railways value="false"/>
-        <geometry.max-grade.fix value="false"/>
-        <offset.disable-normalization value="true"/>
-        <lefthand value="0"/>
-    </processing>
-
-    <junctions>
-        <no-internal-links value="false"/>
-        <no-turnarounds value="true"/>
-        <junctions.corner-detail value="5"/>
-        <junctions.limit-turn-speed value="5.50"/>
-        <rectangular-lane-cut value="0"/>
-    </junctions>
-
-    <pedestrian>
-        <walkingareas value="1"/>
-    </pedestrian>
-
-</configuration>
--->
-
 <net version="1.16" junctionCornerDetail="5" walkingareas="true" limitTurnSpeed="5.50" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
 
     <location netOffset="0.00,0.00" convBoundary="-1453.12,-950.05,1452.63,993.93" origBoundary="-10000000000.00,-10000000000.00,10000000000.00,10000000000.00" projParameter="!"/>
@@ -1516,16 +1483,16 @@
         <lane id="E99_4" index="4" speed="22.22" length="48.30" shape="-444.79,-386.33 -486.73,-410.29"/>
     </edge>
 
-	<tlLogic id="TLS_0" type="static" programID="0" offset="150">
-		<phase duration="35" state="rrrrrrrrrrrgggg"/>
-		<phase duration="5"  state="rrrrrrrrrrryyyy"/>
-		<phase duration="33" state="rrrrggggrrrrrrr"/>
-		<phase duration="5"  state="rrrryyyyrrrrrrr"/>
-		<phase duration="37" state="ggggrrrrrrrrrrr"/>
-		<phase duration="5"  state="yyyyrrrrrrrrrrr"/>
-		<phase duration="55" state="rrrrrrrrgggrrrr"/>
-		<phase duration="5"  state="rrrrrrrryyyrrrr"/>
-	</tlLogic>
+   <tlLogic id="TLS_0" type="static" programID="0" offset="150">
+      <phase duration="35" state="rrrrrrrrrrrgggg"/>
+      <phase duration="5"  state="rrrrrrrrrrryyyy"/>
+      <phase duration="33" state="rrrrggggrrrrrrr"/>
+      <phase duration="5"  state="rrrryyyyrrrrrrr"/>
+      <phase duration="37" state="ggggrrrrrrrrrrr"/>
+      <phase duration="5"  state="yyyyrrrrrrrrrrr"/>
+      <phase duration="55" state="rrrrrrrrgggrrrr"/>
+      <phase duration="5"  state="rrrrrrrryyyrrrr"/>
+   </tlLogic>
 
     <junction id="J0" type="priority" x="-19.59" y="429.47" incLanes="E5_0 E5_1 E5_2 E5_3 E5_4 E5_5 E5_6" intLanes=":J0_0_0 :J0_0_1 :J0_0_2 :J0_0_3 :J0_0_4 :J0_0_5" shape="-40.16,439.13 -18.57,433.17 -20.50,425.76 -39.15,430.34 -39.20,433.58 -39.70,434.75 -40.19,435.91 -40.42,437.30">
         <request index="0" response="000000" foes="000000" cont="0"/>
@@ -3047,4 +3014,67 @@
     <connection from="E48" to=":clusterJ88_J93_w0" fromLane="0" toLane="0" dir="s" state="M"/>
     <connection from=":clusterJ89_J90_w0" to="E47" fromLane="0" toLane="0" dir="s" state="M"/>
     <connection from="E46" to=":clusterJ89_J90_w0" fromLane="0" toLane="0" dir="s" state="M"/>
+
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <!-- Detectors -->
+	<!-- Sb -->
+    <inductionLoop id="Det_00000000" lane="E4_1" pos="61.00" period="300.00" file="Sb.xml"/>
+    <inductionLoop id="Det_00000001" lane="E4_0" pos="61.00" period="300.00" file="Sb.xml"/>
+
+
+	<!-- Nb -->
+    <inductionLoop id="Det_01000000" lane="E133_4" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000001" lane="E133_3" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000002" lane="E133_2" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000003" lane="E133_1" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000004" lane="E133_0" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002100" lane="E125_4" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002101" lane="E125_3" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002102" lane="E125_2" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002103" lane="E125_1" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002104" lane="E125_0" pos="60.00" period="300.00" file="Nb.xml"/>
+
+	<!-- Eb -->
+    <inductionLoop id="Det_02000000" lane="E67_1" pos="155.00" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_02000001" lane="E67_0" pos="155.00" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_02001800" lane="E69_1" pos="66.00" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_02001801" lane="E69_0" pos="66.00" period="300.00" file="Eb.xml"/>
+
+	<!-- Wb -->
+    <inductionLoop id="Det_03000000" lane="E44_1" pos="160.00" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03000001" lane="E44_0" pos="160.00" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03001700" lane="E41_2" pos="53.50" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03001701" lane="E41_1" pos="53.50" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03001702" lane="E41_0" pos="53.50" period="300.00" file="Wb.xml"/>
+
+	<!-- Sb out-->
+	<inductionLoop id="Det_10001004" lane="E1_0" pos="2.00" period="300.00" file="Sb.xml"/>
+    <inductionLoop id="Det_10001100" lane="E0_3" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_10001101" lane="E0_2" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_10001102" lane="E0_1" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_10001103" lane="E0_0" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+
+	<!-- Nb out-->
+    <inductionLoop id="Det_11003003" lane="E116_1" pos="0.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_11003004" lane="E116_0" pos="0.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_11003200" lane="E112_2" pos="50.00" period="300.00" file="Nb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_11003201" lane="E112_1" pos="50.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_11003202" lane="E112_0" pos="50.00" period="300.00" file="Nb.xml"/>
+
+	<!-- Eb out -->
+    <inductionLoop id="Det_12002604" lane="E70_0" pos="85.50" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_12002800" lane="E71_3" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_12002801" lane="E71_2" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_12002802" lane="E71_1" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_12002803" lane="E71_0" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+
+	<!-- Wb out -->
+    <inductionLoop id="Det_13002704" lane="E38_0" pos="52.06" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002800" lane="E37_3" pos="28.66" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002801" lane="E37_2" pos="28.66" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002802" lane="E37_1" pos="28.66" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002803" lane="E37_0" pos="28.66" period="300.00" file="Wb.xml"/>
+</additional>
+
 </net>

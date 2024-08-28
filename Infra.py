@@ -14,6 +14,9 @@ class Config_SUMO:
     scenario_path = "New_TestWay"
     # SUMO Scenario File(.add.xml)
     scenario_file = "new_test.add.xml"
+    route_file = "generated_flows_pm.xml"
+    scenario_file_rl = "New_TestWay/test.net_mergy.xml"
+    route_file_rl = "New_TestWay/generated_flows_pm.xml"
 
     sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
 
@@ -58,6 +61,13 @@ class TOTAL_RESULT(Enum):
     TOTAL_CO2 = 'Total CO2'
     TOTAL_CO2_ACC = 'Total CO2 ACC'
     TOTAL_VOLUME = 'TOtal Volume'
+
+    @classmethod
+    def from_string(cls, string_value):
+        for mode in cls:
+            if mode.value == string_value:
+                return mode
+        raise ValueError(f"{string_value} is not a valid SignalMode value")
 
 def get_input_station_value(direction: Direction) -> str:
     # Direction의 name으로 InputStation을 찾아서 value를 반환
@@ -553,6 +563,18 @@ class Infra:
 
     def getDatabyID(self, totalresult: TOTAL_RESULT):
         return self.dataDic[totalresult]
+
+    def getDatabyName(self, name: str):
+        return self.getDatabyID(TOTAL_RESULT.from_string(name))
+
+    def getTotalCO2(self):
+        if len(self.__totalCO2) > 0:
+            return self.__totalCO2[-1]
+        else:
+            return 0
+
+    def getTotalCO2mg(self):
+        return self.getTotalCO2() * 100
 
     def getTime(self):
         return self.__time

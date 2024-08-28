@@ -1,6 +1,7 @@
 import os
 import sys
 from datetime import datetime
+from time import sleep
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot, Qt

@@ -7,8 +7,8 @@ from inframanager import InfraManager
 from Infra import SDetector, SStation, SSection, Infra, SECTION_RESULT
 
 class RunSimulation(InfraManager):
-    def __init__(self, config, name="Static Control"):
-        super().__init__(config, name, simMode=True)
+    def __init__(self, config, name="Static Control", isExternalSignal=False):
+        super().__init__(config, name, simMode=True, filenames=None, isExternal=isExternalSignal)
         self.stepbySec = 1
         self.colDuration = 30  # seconds
 
@@ -62,7 +62,7 @@ class RunSimulation(InfraManager):
     def __init_section(self, stations, sectionclass=SSection) -> Dict[int, SSection]:
         section_objects = {}
         logic = None
-        if sectionclass is SSection:
+        if self.isExternalSignal is False and sectionclass is SSection:
             logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
         for station_id in stations:
