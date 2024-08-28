@@ -4,10 +4,11 @@ import pandas as pd
 from Infra import Infra, SECTION_RESULT
 
 class InfraManager():
-    def __init__(self, config, name="Static Control", simMode=True, filenames=None):
+    def __init__(self, config, name="Static Control", simMode=True, filenames=None, isExternal=False):
         self.sigTypeName = name
         self.config = config
         self.filenames = filenames
+        self.isExternalSignal = isExternal
         self.preinit()
         #init Infra
         self._Infra: List = self._make_Infra()
