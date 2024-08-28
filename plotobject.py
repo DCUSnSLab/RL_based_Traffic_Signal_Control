@@ -36,6 +36,7 @@ class PlotObject():
         self._isMoving = ismoving
         self._movingInterval = interval
         self._isTimeInterval = isTimeInterval
+        self._ymax = 0
 
         self._plotwidget: PlotWidget = None
         self._plots = []
@@ -45,7 +46,7 @@ class PlotObject():
         self.useComp = useComp
 
         self.colorset = ('r', 'g', 'b', 'c') #SB, NB, EB, WB
-        self.__ymax = 0
+
 
         self.__initUI()
 
@@ -64,13 +65,15 @@ class PlotObject():
 
     def getWidtget(self):
         return self._plotwidget
+    def getYMax(self):
+        return self._ymax
 
     def setPlotYRange(self, min, max):
         self._plotwidget.plotItem.setYRange(min, max)
-        self.__y_max = self._plotwidget.plotItem.viewRange()[1][1]
+        self._ymax = max#self._plotwidget.plotItem.viewRange()[1][1]
 
     def setLabelPos(self, x, y_max):
-        d_gap = y_max * 0.07
+        d_gap = (y_max-10) * 0.07
         y_max -= d_gap
         for label in self._labels:
             label.setPos(x, y_max)
@@ -116,8 +119,8 @@ class PlotObject():
         return y
 
     def updateLabels(self, xmin=0):
-        y_max = self._plotwidget.plotItem.viewRange()[1][1]
-        self.setLabelPos(xmin, y_max)
+        #y_max = self._plotwidget.plotItem.viewRange()[1][1]
+        self.setLabelPos(xmin, self._ymax)
 
     def updatePlot(self):
         pass
@@ -127,8 +130,8 @@ class PlotObject():
         self._compInfra = compare_infras
         if self._compInfra is not None and self.isCompAdded is False:
             self.addCompPlot(self._compInfra)
-        self.updateLabels()
         self.updatePlot()
+        self.updateLabels()
 
     def generate_random_color(self):
         # 0에서 255 사이의 랜덤한 RGB 값을 생성
@@ -162,24 +165,29 @@ class PlotSection(PlotObject):
         sections = self.rtinfra.getSections()
         time_data = None#self.rtinfra.getTime()
         data = None
+        maxv = 0
         for i, plot in enumerate(self._plots):
             if self._isTimeInterval is False:
                 time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIME)
             else:
                 time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIMEINT)
 
-            data = sections[str(i)].getDatabyID(self.__sel_data)
+            rawdata = sections[str(i)].getDatabyID(self.__sel_data)
             if self._isMoving is True:
                 time_data = list(time_data)[-self._movingInterval:]
-                data = list(data)[-self._movingInterval:]
+                rawdata = list(rawdata)[-self._movingInterval:]
 
-            data = self.low_pass_filter(data)
+            data = self.low_pass_filter(rawdata)
 
             # min_length = min(len(time_data), len(data))
             # time_data = list(time_data)[:min_length]
             # data = list(data)[:min_length]
 
             plot.setData(time_data, data)
+            m = max(rawdata)
+            maxv = m if m > maxv else maxv
+            self.setPlotYRange(min(min(data), 0), maxv)
+            #self._plotwidget.plotItem.setYRange(min(min(data), 0), max(data)+)
 
         if self._isMoving is True:
             self._plotwidget.plotItem.setXRange(max(time_data[-1] - self._movingInterval, 0), time_data[-1])
