@@ -44,7 +44,6 @@ class SMUtil:
 
 class SECTION_RESULT(Enum):
     TIME = 'Time'
-    TIMEINT = 'Time Interval'
     SECTIONID = 'Sectionid'
     SECTION_CO2 = 'Section_CO2_Emission'
     VOLUME = 'Section_Volume'
@@ -317,7 +316,6 @@ class Section:
 
         #append data
         self.__time = deque()
-        self.__timeint = deque()
         self.__section_co2 = deque()
         self.__section_volumes = deque()
         self.__section_speedint = deque()
@@ -326,7 +324,6 @@ class Section:
         self.__section_maxaccel = deque()
         self.__section_minaccel = deque()
         self.append_section_time = self.__time.append
-        self.append_section_timeint = self.__timeint.append
         self.append_section_co2 = self.__section_co2.append
         self.append_section_volumes = self.__section_volumes.append
         self.append_section_speedint = self.__section_speedint.append
@@ -337,7 +334,6 @@ class Section:
 
         self.dataDic = dict()
         self.dataDic[SECTION_RESULT.TIME] = self.__time
-        self.dataDic[SECTION_RESULT.TIMEINT] = self.__timeint
         self.dataDic[SECTION_RESULT.SECTION_CO2] = self.__section_co2
         self.dataDic[SECTION_RESULT.TRAFFIC_QUEUE] = self.__section_queues
         self.dataDic[SECTION_RESULT.GREEN_TIME] = self._section_greentime
@@ -422,11 +418,17 @@ class SSection(Section):
         self.stopline_position = None
 
     def __get_stop_lane_position(self, stations):
+        # stations가 None이거나 빈 리스트인지 확인
+        if stations is None or len(stations) == 0:
+            print("Stations is None or empty, cannot determine stopline position.")
+            print(stations)
+            return None  # 기본값 또는 처리하지 않고 None을 반환
         last_station = stations[-1]
         for stop_detector in last_station.dets:
             lane_id = traci.inductionloop.getLaneID(stop_detector.id)
             lane_shape = traci.lane.getShape(lane_id)
             stop_lane_position = lane_shape[-1]
+            print(stop_lane_position)
         return stop_lane_position
 
     def setGreenTime(self, greetime, logic):
@@ -456,28 +458,8 @@ class SSection(Section):
         pscnt = len(self.getDatabyID(SECTION_RESULT.SPEED_INT))
         isspeedadded = False
         speedsum = 0
-        max_accel = -float('inf')
-        min_accel = float('inf')
-
-        # 정지선 확인
-        if None == self.stopline_position:
-            self.stopline_position = self.__get_stop_lane_position(self.stations)
-        else:
-            pass
-
-        # 가속도 데이터 수집
-        if self.stopline_position is not None:
-            for vehicle in self.section_vehicles:
-                try:
-                    vehicle_position = traci.vehicle.getPosition(vehicle)
-                    distance_to_stopline = self.__calculate_distance(vehicle_position, self.stopline_position)
-                    if distance_to_stopline <= 100:
-                        accel = traci.vehicle.getAcceleration(vehicle)
-                        max_accel = max(max_accel, accel)
-                        min_accel = min(min_accel, accel)
-                except TraCIException:
-                    pass
-
+        max_accel = 0
+        min_accel = 0
         for i, station in enumerate(self.stations):
             #update station data
             station.update()
@@ -485,6 +467,23 @@ class SSection(Section):
             if i == 0:
                 section_volume += station.getVolume()
                 self.section_vehicles.update(station.getInputVehIds())
+
+            # 가속도 데이터 수집
+            for vehicle in self.section_vehicles:
+                try:
+                    vehicle_position = traci.vehicle.getPosition(vehicle)
+                    distance_to_stopline = self.__calculate_distance(vehicle_position, self.stopline_position)
+                    if distance_to_stopline <= 100:
+                        accel = traci.vehicle.getAcceleration(vehicle)
+                        if accel > max_accel:
+                            max_accel = accel
+                        elif accel < min_accel:
+                            min_accel = accel
+                    else:
+                        max_accel = 0
+                        min_accel = 0
+                except TraCIException:
+                    pass
 
             #update input station data according to InputStation Setup
             if station.id == get_input_station_value(self.direction):
@@ -509,8 +508,6 @@ class SSection(Section):
         if isspeedadded is True:
             average_speed_int = speedsum / speedcnt * SMUtil.MPStoKPH
             self.append_section_speedint(average_speed_int)
-            self.append_section_timeint(time)
-
         for vehicle in self.section_vehicles:
             try:
                 if traci.vehicle.getCO2Emission(vehicle) >= 0:
@@ -522,8 +519,6 @@ class SSection(Section):
 
         self.section_vehicles.difference_update(removal_veh)
 
-        self.append_section_maxaccel(max_accel if max_accel >= 0 else 0)
-        self.append_section_minaccel(min_accel if min_accel <= 0 else 0)
         self.append_section_queues(self.traffic_queue)
         self.append_section_co2(section_co2_emission)
         self.append_section_volumes(section_volume)
