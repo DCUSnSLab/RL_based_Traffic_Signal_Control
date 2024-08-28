@@ -483,6 +483,26 @@ class SSection(Section):
         numofstation = len(self.stations) - 1
         max_accel = 0
         min_accel = 0
+
+        # 정지선 확인
+        if None == self.stopline_position:
+            self.stopline_position = self.__get_stop_lane_position(self.stations)
+        else:
+            pass
+
+        # 가속도 데이터 수집
+        if self.stopline_position is not None:
+            for vehicle in self.section_vehicles:
+                try:
+                    vehicle_position = traci.vehicle.getPosition(vehicle)
+                    distance_to_stopline = self.__calculate_distance(vehicle_position, self.stopline_position)
+                    if distance_to_stopline <= 100:
+                        accel = traci.vehicle.getAcceleration(vehicle)
+                        max_accel = max(max_accel, accel)
+                        min_accel = min(min_accel, accel)
+                except TraCIException:
+                    pass
+
         for i, station in enumerate(self.stations):
             #update station data
             station.update()
@@ -490,23 +510,6 @@ class SSection(Section):
             if i == 0:
                 section_volume += station.getVolume()
                 self.section_vehicles.update(station.getInputVehIds())
-
-            # 가속도 데이터 수집
-            for vehicle in self.section_vehicles:
-                try:
-                    vehicle_position = traci.vehicle.getPosition(vehicle)
-                    distance_to_stopline = self.__calculate_distance(vehicle_position, self.stopline_position)
-                    if distance_to_stopline <= 100:
-                        accel = traci.vehicle.getAcceleration(vehicle)
-                        if accel > max_accel:
-                            max_accel = accel
-                        elif accel < min_accel:
-                            min_accel = accel
-                    else:
-                        max_accel = 0
-                        min_accel = 0
-                except TraCIException:
-                    pass
 
             #update input station data according to InputStation Setup
             if station.id == get_input_station_value(self.direction):

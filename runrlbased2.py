@@ -79,7 +79,7 @@ class RunRLBased2(RunSimulation):
     def __init__(self, config, name):
         super().__init__(config, 'RL_DQL', isExternalSignal=True)
         print('L init1')
-        self.model = DQN.load("dqn_model_episode_1.zip")
+        self.model = DQN.load("dqn_model_episode_25_16.zip")
 
         self.env = CustomSumoEnvironment(
             net_file=self.config.scenario_file_rl,
