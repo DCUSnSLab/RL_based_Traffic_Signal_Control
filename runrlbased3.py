@@ -86,7 +86,7 @@ class RunRLBased3(RunSimulation):
             yellow_time=4,
             min_green=5,
             max_green=120,
-            sumo_seed=1,
+            sumo_seed=100,
             #observation_class=CO2ObservationFunction,
             simInfra=self.getInfra()
         )
