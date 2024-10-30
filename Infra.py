@@ -18,8 +18,6 @@ class Config_SUMO:
     scenario_file_rl = "New_TestWay/test.net_mergy.xml"
     route_file_rl = "New_TestWay/generated_flows_pm.xml"
 
-    sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
-
 class Direction(Enum):
     SB = (0, 4)
     NB = (1, 6)
@@ -55,14 +53,15 @@ class SECTION_RESULT(Enum):
     TRAFFIC_QUEUE = 'traffic_queue'
     GREEN_TIME = 'green_time'
     DIRECTION = 'direction'
-    ACCELERATION = 'Acceleration'
-    DECELERATION = 'Deceleration'
+    WAITING_TIME = 'waiting time'
 
 class TOTAL_RESULT(Enum):
     TIME = 'Time'
     TOTAL_CO2 = 'Total CO2'
     TOTAL_CO2_ACC = 'Total CO2 ACC'
     TOTAL_VOLUME = 'TOtal Volume'
+    TOTAL_WAITING_TIME = 'Total Waiting Time'
+    TOTAL_QUEUE = 'Total Queue'
 
     @classmethod
     def from_string(cls, string_value):
@@ -161,7 +160,7 @@ class SDetector(Detector):
             if self.prevVehicles is not None and veh in self.prevVehicles:
                 dupvol += 1
             else:
-                speed += traci.inductionloop.getIntervalMeanSpeed(self.id)
+                speed +=  traci.inductionloop.getIntervalMeanSpeed(self.id)
                 speedcnt += 1
             # if self.id == 'Det_02000000' or self.id == 'Det_02000001' or self.id == 'Det_12002604':
             #     print(" --- each %s %s -> u : %d"%(self.id, veh, self.speed))
@@ -333,8 +332,7 @@ class Section:
         self.__section_speedint = deque()
         self.__section_queues = deque()
         self._section_greentime = deque()
-        self.__section_maxaccel = deque()
-        self.__section_minaccel = deque()
+        self.__section_waitingtime = deque()
         self.append_section_time = self.__time.append
         self.append_section_timeint = self.__timeint.append
         self.append_section_co2 = self.__section_co2.append
@@ -342,8 +340,7 @@ class Section:
         self.append_section_speedint = self.__section_speedint.append
         self.append_section_queues = self.__section_queues.append
         self.append_section_greentime = self._section_greentime.append
-        self.append_section_maxaccel = self.__section_maxaccel.append
-        self.append_section_minaccel = self.__section_minaccel.append
+        self.append_section_waitingtime = self.__section_waitingtime.append
 
         self.dataDic = dict()
         self.dataDic[SECTION_RESULT.TIME] = self.__time
@@ -353,8 +350,7 @@ class Section:
         self.dataDic[SECTION_RESULT.GREEN_TIME] = self._section_greentime
         self.dataDic[SECTION_RESULT.VOLUME] = self.__section_volumes
         self.dataDic[SECTION_RESULT.SPEED_INT] = self.__section_speedint
-        self.dataDic[SECTION_RESULT.ACCELERATION] = self.__section_maxaccel
-        self.dataDic[SECTION_RESULT.DECELERATION] = self.__section_minaccel
+        self.dataDic[SECTION_RESULT.WAITING_TIME] = self.__section_waitingtime
         self.__define_direction()
 
     def __define_direction(self):
@@ -395,9 +391,9 @@ class Section:
         else:
             return 0
 
-    def getCurrentSpeedInt(self):
-        if len(self.__section_speedint) > 0:
-            return self.__section_speedint[-1]
+    def getCurrentWaitingTime(self):
+        if len(self.__section_waitingtime) > 0:
+            return self.__section_waitingtime[-1]
         else:
             return 0
 
@@ -435,21 +431,6 @@ class SSection(Section):
         self.traffic_queue = 0
         self.current_greentime = -1
         self.section_vehicles = set()
-        self.stopline_position = None
-
-    def __get_stop_lane_position(self, stations):
-        # stations가 None이거나 빈 리스트인지 확인
-        if stations is None or len(stations) == 0:
-            print("Stations is None or empty, cannot determine stopline position.")
-            print(stations)
-            return None  # 기본값 또는 처리하지 않고 None을 반환
-        last_station = stations[-1]
-        for stop_detector in last_station.dets:
-            lane_id = traci.inductionloop.getLaneID(stop_detector.id)
-            lane_shape = traci.lane.getShape(lane_id)
-            stop_lane_position = lane_shape[-1]
-            print(stop_lane_position)
-        return stop_lane_position
 
     def setGreenTime(self, greetime, logic):
         self.current_greentime = greetime
@@ -469,9 +450,6 @@ class SSection(Section):
     def __setSignalGreenTime(self, time, logic):
         logic.phases[self.direction.value[1]].duration = time
 
-    def __calculate_distance(self, vehicle_position, stopline_position):
-        return math.sqrt((vehicle_position[0] - stopline_position[0]) ** 2 + (vehicle_position[1] - stopline_position[1]) ** 2)
-
     def update(self, time):
         section_co2_emission = 0
         section_volume = 0
@@ -480,29 +458,7 @@ class SSection(Section):
         pscnt = len(self.getDatabyID(SECTION_RESULT.SPEED_INT))
         isspeedadded = False
         speedsum = 0
-        numofstation = len(self.stations) - 1
-        max_accel = 0
-        min_accel = 0
-
-        # 정지선 확인
-        if None == self.stopline_position:
-            self.stopline_position = self.__get_stop_lane_position(self.stations)
-        else:
-            pass
-
-        # 가속도 데이터 수집
-        if self.stopline_position is not None:
-            for vehicle in self.section_vehicles:
-                try:
-                    vehicle_position = traci.vehicle.getPosition(vehicle)
-                    distance_to_stopline = self.__calculate_distance(vehicle_position, self.stopline_position)
-                    if distance_to_stopline <= 100:
-                        accel = traci.vehicle.getAcceleration(vehicle)
-                        max_accel = max(max_accel, accel)
-                        min_accel = min(min_accel, accel)
-                except TraCIException:
-                    pass
-
+        waiting_time = 0
         for i, station in enumerate(self.stations):
             #update station data
             station.update()
@@ -520,7 +476,7 @@ class SSection(Section):
 
             scnt = len(station.getSpeedInts())
 
-            if i < numofstation and scnt > pscnt:
+            if i == 0 and scnt > pscnt:
                 isspeedadded = True
                 sspeed = station.getSpeedInt()
                 if sspeed != -1 :
@@ -533,7 +489,6 @@ class SSection(Section):
         #calculate average speed
         if isspeedadded is True:
             average_speed_int = speedsum / speedcnt * SMUtil.MPStoKPH
-            #average_speed_int = self.getCurrentSpeedInt() if average_speed_int < 0.1 else average_speed_int * SMUtil.MPStoKPH
             self.append_section_speedint(average_speed_int)
             self.append_section_timeint(time)
 
@@ -541,6 +496,7 @@ class SSection(Section):
             try:
                 if traci.vehicle.getCO2Emission(vehicle) >= 0:
                     section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
+                waiting_time += traci.vehicle.getWaitingTime(vehicle)
             except TraCIException:
                 print('------------------------disappear -> ',vehicle)
                 #self.section_vehicles.remove(vehicle)
@@ -548,8 +504,7 @@ class SSection(Section):
 
         self.section_vehicles.difference_update(removal_veh)
 
-        self.append_section_maxaccel(max_accel)
-        self.append_section_minaccel(min_accel)
+        self.append_section_waitingtime(waiting_time)
         self.append_section_queues(self.traffic_queue)
         self.append_section_co2(section_co2_emission)
         self.append_section_volumes(section_volume)
@@ -585,15 +540,21 @@ class Infra:
         self.__totalCO2 = deque()
         self.__totalCO2ACC = deque()
         self.__totalVolume = deque()
+        self.__totalWaitingTime = deque()
+        self.__totalQuue = deque()
         self.append_time = self.__time.append
         self.append_totalCO2 = self.__totalCO2.append
         self.append_totalCO2ACC = self.__totalCO2ACC.append
         self.append_totalVolume = self.__totalVolume.append
+        self.append_totalWaitingTime = self.__totalWaitingTime.append
+        self.append_totalQueue = self.__totalQuue.append
         self.dataDic = {}
         self.dataDic[TOTAL_RESULT.TIME] = self.__time
         self.dataDic[TOTAL_RESULT.TOTAL_CO2] = self.__totalCO2
         self.dataDic[TOTAL_RESULT.TOTAL_CO2_ACC] = self.__totalCO2ACC
         self.dataDic[TOTAL_RESULT.TOTAL_VOLUME] = self.__totalVolume
+        self.dataDic[TOTAL_RESULT.TOTAL_WAITING_TIME] = self.__totalWaitingTime
+        self.dataDic[TOTAL_RESULT.TOTAL_QUEUE] = self.__totalQuue
 
         self.sigType: str = sigtype
         self.__savedTime: datetime = None
@@ -603,11 +564,15 @@ class Infra:
         totalCO2 = 0
         totalCO2ACC = 0
         totalVol = 0
+        totalWaitingTime = 0
+        totalQueue = 0
         time = traci.simulation.getTime()
         for section_id, section in self.getSections().items():
             section.update(time)
             totalCO2 += section.getCurrentCO2()
             totalVol += section.getCurrentVol()
+            totalWaitingTime += section.getCurrentWaitingTime()
+            totalQueue += section.getCurrentQueue()
 
         # vehicle_ids = traci.vehicle.getIDList()
         # for vehicle_id in vehicle_ids:
@@ -618,6 +583,8 @@ class Infra:
         self.append_totalCO2(totalCO2)
         self.append_totalCO2ACC(totalCO2ACC)
         self.append_totalVolume(totalVol)
+        # self.append_totalWaitingTime(totalWaitingTime)
+        self.append_totalQueue(totalQueue)
         self.append_time(time)
 
     def getDatabyID(self, totalresult: TOTAL_RESULT):
@@ -634,6 +601,12 @@ class Infra:
 
     def getTotalCO2mg(self):
         return self.getTotalCO2() * 100
+
+    def getTotalWaitingTime(self):
+        if len(self.__totalWaitingTime) > 0:
+            return self.__totalWaitingTime[-1]
+        else:
+            return 0
 
     def getTime(self):
         return self.__time

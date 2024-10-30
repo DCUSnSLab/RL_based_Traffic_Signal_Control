@@ -53,7 +53,7 @@ class CO2ObservationFunction(ObservationFunction):
         co2_emissions.append(total_co2_emission)
         # co2_emissions = self.ts.get_lanes_co2_emission()
         observation = np.array(phase_id + min_green + co2_emissions, dtype=np.float32)
-        #print("observation: ", observation)
+        print("observation: ", observation)
         return observation
 
     def observation_space(self) -> spaces.Box:
@@ -86,7 +86,7 @@ class RunRLBased3(RunSimulation):
             yellow_time=4,
             min_green=5,
             max_green=120,
-            sumo_seed=1,
+            sumo_seed=100,
             #observation_class=CO2ObservationFunction,
             simInfra=self.getInfra()
         )

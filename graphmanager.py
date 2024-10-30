@@ -19,7 +19,10 @@ class GraphLayout(QGridLayout):
         for i, hbox in enumerate(self.hbox_list):
             # 각 QHBoxLayout에 버튼 추가
             combo_box = QComboBox()
-            combo_box.setFixedWidth(200)
+            combo_box.setFixedWidth(250)
+            font = combo_box.font()
+            font.setPointSize(13)
+            font.setBold(True)
 
             # 콤보박스에 아이템 추가
             for plot in PLOTMODE:

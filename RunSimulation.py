@@ -78,7 +78,7 @@ class RunSimulation(InfraManager):
         return section_objects
 
     def __set_SUMO(self):
-        traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start", "--quit-on-end"])
+        traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start", "--quit-on-end", "--seed", "100"])
         traci.simulationStep()
 
     def terminate(self):
