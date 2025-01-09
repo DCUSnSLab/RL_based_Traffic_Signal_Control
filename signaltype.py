@@ -9,6 +9,7 @@ from rundilemazone import RunDilemaZone
 from runrlbased import RunRLBased
 from runrlbased2 import RunRLBased2
 from runrlbased3 import RunRLBased3
+from runrlbased4 import RunRLBased4
 
 
 class SignalMode(Enum):
@@ -19,6 +20,7 @@ class SignalMode(Enum):
     RLBased = (lambda: RunRLBased(config=Config_SUMO(), name="Reinforement Learning based Control"), "Reinforement Learning based Control")
     RLBased2 = (lambda: RunRLBased2(config=Config_SUMO(), name="Reinforement Learning based Control"),"Reinforement Learning based Control 2")
     RLBased3 = (lambda: RunRLBased3(config=Config_SUMO(), name="Reinforement Learning based Control"),"Reinforement Learning based Control 3")
+    RLBased4 = (lambda: RunRLBased4(config=Config_SUMO(), name="Reinforement Learning based Control"), "Reinforement Learning based Control 4")
     DilemaZone = (lambda: RunDilemaZone(config=Config_SUMO(), name="DilemaZone Control"), "DilemaZone Control")
 
     @classmethod
