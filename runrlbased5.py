@@ -42,28 +42,29 @@ class CO2ObservationFunction(ObservationFunction):
     def __call__(self) -> np.ndarray:
         self._custInfra: Infra = self.ts.env.getCustInfra()
 
-        total_co2_emission = 0
         co2_emissions = []
         waiting_time = []
-        # for veh_id in traci.vehicle.getIDList():
-        #     total_co2_emission += traci.vehicle.getCO2Emission(veh_id)
-        total_co2_emission = self._custInfra.getTotalCO2mg()
-        total_waiting_time = self._custInfra.getTotalWaitingTime()
+
+        section_data = self._custInfra.getSections()
+
+        for section_id, section in section_data.items():
+            co2_emissions.append(section.getCurrentCO2())
+            waiting_time.append(section.getCurrentWaitingTime())
+
         """Return the CO2-based observation."""
         phase_id = [1 if self.ts.green_phase == i else 0 for i in range(self.ts.num_green_phases)]  # one-hot encoding
         min_green = [0 if self.ts.time_since_last_phase_change < self.ts.min_green + self.ts.yellow_time else 1]
-        co2_emissions.append(total_co2_emission)
-        waiting_time.append(total_waiting_time)
-        # co2_emissions = self.ts.get_lanes_co2_emission()
+
         observation = np.array(phase_id + min_green + co2_emissions + waiting_time, dtype=np.float32)
+
         # print("observation: ", observation)
         return observation
 
     def observation_space(self) -> spaces.Box:
         """Return the observation space."""
         return spaces.Box(
-            low=np.zeros(self.ts.num_green_phases + 1 + 1 + 1, dtype=np.float32),
-            high=np.ones(self.ts.num_green_phases + 1 + 1 + 1, dtype=np.float32),
+            low=np.zeros(self.ts.num_green_phases + 1 + 2 * 4, dtype=np.float32),
+            high=np.ones(self.ts.num_green_phases + 1 + 2 * 4, dtype=np.float32),
         )
 
 # 콜백 클래스를 정의하여 학습 결과를 매번 출력하도록 설정
@@ -77,20 +78,21 @@ class EveryStepCallback(BaseCallback):
         #     print(f"Step: {self.num_timesteps}, Reward: {self.locals['rewards'][-1]}")
         return True
 
-class RunRLBased4(RunSimulation):
+class RunRLBased5(RunSimulation):
     def __init__(self, config, name):
-        super().__init__(config, 'RL_DQL_Check_Intersection', isExternalSignal=True)
-        self.model = DQN.load("dqn_model_episode_3.zip")
+        super().__init__(config, 'RL_DQL_Check_Section', isExternalSignal=True)
+        self.model = DQN.load("dqn_model_episode_1.zip")
         self.prevAction = -1
         self.env = CustomSumoEnvironment(
             net_file=self.config.scenario_file_rl,
             single_agent=True,
             route_file=self.config.route_file_rl,
             use_gui=True,
+            # delta_time=1,
             yellow_time=4,
             min_green=32,
             max_green=60,
-            sumo_seed=100,
+            sumo_seed=1,
             observation_class=CO2ObservationFunction,
             simInfra=self.getInfra()
         )
@@ -122,7 +124,6 @@ class RunRLBased4(RunSimulation):
         print(f"Current Duration: {current_dur}, Max Green: {self.env.max_green}")
         # Apply the updated or reset green time
         sections[str(bCorrection[action])].setGreenTime(current_dur, None)
-        self.prevAction = action
 
     def run_simulation(self):
         obs, _ = self.env.reset()
@@ -139,6 +140,7 @@ class RunRLBased4(RunSimulation):
             step += 1
             self.setSectionSignal(action)
             print(f"Step: {step}, Action: {action}, Previous Action: {self.prevAction}")
+            self.prevAction = action
             print(f"Observation: {obs}, Reward: {reward}")
 
         self.isStop = True
