@@ -83,6 +83,7 @@ class RunRLBased5(RunSimulation):
         super().__init__(config, 'RL_DQL_Check_Section', isExternalSignal=True)
         self.model = DQN.load("dqn_model_episode_1.zip")
         self.prevAction = -1
+        self.current_dur = 0
         self.env = CustomSumoEnvironment(
             net_file=self.config.scenario_file_rl,
             single_agent=True,
@@ -105,25 +106,34 @@ class RunRLBased5(RunSimulation):
         bCorrection = [2, 3, 0, 1]
         sections = self.getInfra().getSections()
 
-        # Retrieve max_green from environment
-        max_green = self.env.max_green
-
         if self.prevAction == action:
-            # If the action remains the same, increase the current green time
-            current_dur = sections[str(bCorrection[action])].getCurrentGreenTime() + self.env.delta_time
+            # If the green time exceeds max_green, switch the action (phase)
+            if self.current_dur >= self.env.max_green:
+                # Change the action (phase) to the next one in sequence
+                action = (action + 1) % len(bCorrection)
+                self.current_dur = self.env.delta_time  # Reset green time for the new phase
+                # Apply the updated or reset green time
+                sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
+                print("\nchange action: over max_green")
+            else:
+                # If the action remains the same, increase the current green time
+                self.current_dur += self.env.delta_time
+                print("\nstay action: action is same")
         else:
-            # Reset the green time if the action (phase) has changed
-            current_dur = self.env.delta_time
+            # If the green time does not satisfy the min_green time, keep the action (phase)
+            if self.current_dur <= self.env.min_green:
+                action = self.prevAction
+                self.current_dur += self.env.delta_time
+                sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
+                print("\nstay action: not enough min_green")
+            else:
+                # Reset the green time if the action (phase) has changed
+                self.current_dur = self.env.delta_time
+                sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
+                print("\nchange action")
 
-        # If the green time exceeds max_green, switch the action (phase)
-        if current_dur >= max_green:
-            # Change the action (phase) to the next one in sequence
-            action = (action + 1) % len(bCorrection)
-            current_dur = self.env.delta_time  # Reset green time for the new phase
+        print(f"Current Duration: {self.current_dur}, Min Green: {self.env.min_green}, Max Green: {self.env.max_green}")
 
-        print(f"Current Duration: {current_dur}, Max Green: {self.env.max_green}")
-        # Apply the updated or reset green time
-        sections[str(bCorrection[action])].setGreenTime(current_dur, None)
 
     def run_simulation(self):
         obs, _ = self.env.reset()
