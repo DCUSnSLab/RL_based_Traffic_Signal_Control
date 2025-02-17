@@ -82,6 +82,7 @@ class RunRLBased5(RunSimulation):
     def __init__(self, config, name):
         super().__init__(config, 'RL_DQL_Check_Section', isExternalSignal=True)
         self.model = DQN.load("dqn_model_episode_1.zip")
+        self.action = 0
         self.prevAction = -1
         self.current_dur = 0
         self.env = CustomSumoEnvironment(
@@ -106,31 +107,45 @@ class RunRLBased5(RunSimulation):
         bCorrection = [2, 3, 0, 1]
         sections = self.getInfra().getSections()
 
+        TL_logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
+        phase_state = TL_logic.phases[action].state
+
         if self.prevAction == action:
             # If the green time exceeds max_green, switch the action (phase)
             if self.current_dur >= self.env.max_green:
                 # Change the action (phase) to the next one in sequence
                 action = (action + 1) % len(bCorrection)
+                self.action = action
                 self.current_dur = self.env.delta_time  # Reset green time for the new phase
                 # Apply the updated or reset green time
                 sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
-                print("\nchange action: over max_green")
+                phase = TL_logic.phases[(action + 1) % len(bCorrection)].state
+                traci.trafficlight.setRedYellowGreenState("TLS_0", phase)
+                print("change action: over max_green")
+                print("Phase: ", phase)
             else:
                 # If the action remains the same, increase the current green time
                 self.current_dur += self.env.delta_time
-                print("\nstay action: action is same")
+                print("stay action: action is same")
+                print("Phase: ", phase_state)
         else:
             # If the green time does not satisfy the min_green time, keep the action (phase)
             if self.current_dur <= self.env.min_green:
                 action = self.prevAction
+                self.action = action
                 self.current_dur += self.env.delta_time
                 sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
-                print("\nstay action: not enough min_green")
+                phase = TL_logic.phases[action].state
+                traci.trafficlight.setRedYellowGreenState("TLS_0", phase)
+                print("stay action: not enough min_green")
+                print("Phase: ", phase)
             else:
                 # Reset the green time if the action (phase) has changed
                 self.current_dur = self.env.delta_time
                 sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
-                print("\nchange action")
+                traci.trafficlight.setRedYellowGreenState("TLS_0", phase_state)
+                print("change action")
+                print("Phase: ", phase_state)
 
         print(f"Current Duration: {self.current_dur}, Min Green: {self.env.min_green}, Max Green: {self.env.max_green}")
 
@@ -146,12 +161,16 @@ class RunRLBased5(RunSimulation):
         while self.isStop is not True and step <= maxstep:
             action, _states = self.model.predict(obs, state=None, deterministic=False)
             obs, reward, done, truncated, info = self.env.step(action)
+            print("\norigin action: ", action)
+            self.action = action
             total_reward += reward
             step += 1
-            self.setSectionSignal(action)
-            print(f"Step: {step}, Action: {action}, Previous Action: {self.prevAction}")
-            self.prevAction = action
-            print(f"Observation: {obs}, Reward: {reward}")
+            self.setSectionSignal(self.action)
+            print(f"Step: {step}, Action: {self.action}, Previous Action: {self.prevAction}")
+            self.prevAction = self.action
+            # print(f"Observation: {obs}, Reward: {reward}")
+            print("Current Phase state:\n", traci.trafficlight.getRedYellowGreenState("TLS_0"))
+            print("Logic:\n", traci.trafficlight.getAllProgramLogics("TLS_0"))
 
         self.isStop = True
         traci.close()
