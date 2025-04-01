@@ -119,15 +119,15 @@ class RunRLBased5(RunSimulation):
                 self.current_dur = self.env.delta_time  # Reset green time for the new phase
                 # Apply the updated or reset green time
                 sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
-                phase = TL_logic.phases[(action + 1) % len(bCorrection)].state
-                traci.trafficlight.setRedYellowGreenState("TLS_0", phase)
+                # phase = TL_logic.phases[(action + 1) % len(bCorrection)].state
+                # traci.trafficlight.setRedYellowGreenState("TLS_0", phase)
                 print("change action: over max_green")
-                print("Phase: ", phase)
+                # print("Phase: ", phase)
             else:
                 # If the action remains the same, increase the current green time
                 self.current_dur += self.env.delta_time
                 print("stay action: action is same")
-                print("Phase: ", phase_state)
+                # print("Phase: ", phase_state)
         else:
             # If the green time does not satisfy the min_green time, keep the action (phase)
             if self.current_dur <= self.env.min_green:
@@ -135,17 +135,17 @@ class RunRLBased5(RunSimulation):
                 self.action = action
                 self.current_dur += self.env.delta_time
                 sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
-                phase = TL_logic.phases[action].state
-                traci.trafficlight.setRedYellowGreenState("TLS_0", phase)
+                # phase = TL_logic.phases[action].state
+                # traci.trafficlight.setRedYellowGreenState("TLS_0", phase)
                 print("stay action: not enough min_green")
-                print("Phase: ", phase)
+                # print("Phase: ", phase)
             else:
                 # Reset the green time if the action (phase) has changed
                 self.current_dur = self.env.delta_time
                 sections[str(bCorrection[action])].setGreenTime(self.current_dur, None)
-                traci.trafficlight.setRedYellowGreenState("TLS_0", phase_state)
+                # traci.trafficlight.setRedYellowGreenState("TLS_0", phase_state)
                 print("change action")
-                print("Phase: ", phase_state)
+                # print("Phase: ", phase_state)
 
         print(f"Current Duration: {self.current_dur}, Min Green: {self.env.min_green}, Max Green: {self.env.max_green}")
 
@@ -160,17 +160,20 @@ class RunRLBased5(RunSimulation):
 
         while self.isStop is not True and step <= maxstep:
             action, _states = self.model.predict(obs, state=None, deterministic=False)
-            obs, reward, done, truncated, info = self.env.step(action)
             print("\norigin action: ", action)
             self.action = action
+            self.setSectionSignal(self.action)
+            obs, reward, done, truncated, info = self.env.step(self.action)
+            # self.action = action
             total_reward += reward
             step += 1
-            self.setSectionSignal(self.action)
+            # self.setSectionSignal(self.action)
+            # obs, reward, done, truncated, info = self.env.step(action)
             print(f"Step: {step}, Action: {self.action}, Previous Action: {self.prevAction}")
             self.prevAction = self.action
             # print(f"Observation: {obs}, Reward: {reward}")
             print("Current Phase state:\n", traci.trafficlight.getRedYellowGreenState("TLS_0"))
-            print("Logic:\n", traci.trafficlight.getAllProgramLogics("TLS_0"))
+            print("Logic:\n", traci.trafficlight.getAllProgramLogics("TLS_0")[1])
 
         self.isStop = True
         traci.close()
