@@ -9,6 +9,8 @@ import numpy as np
 from gymnasium import spaces
 from sumo_rl import ObservationFunction, TrafficSignal
 
+import random
+
 class CustomSumoEnvironment(SumoEnvironment):
     def __init__(self, simInfra, **kwargs):
         super().__init__(**kwargs)
@@ -75,8 +77,9 @@ class EveryStepCallback(BaseCallback):
 
 class RunRLBased3(RunSimulation):
     def __init__(self, config, name):
+        SumoSeed = random.randint(0, 2_147_483_647)
         super().__init__(config, 'RL_DQL', isExternalSignal=True)
-        self.model = DQN.load("dqn_legacy_episode_100.zip")
+        self.model = DQN.load("dqn_model_episode_100_min32.zip")
         self.prevAction = -1
         self.env = CustomSumoEnvironment(
             net_file=self.config.scenario_file_rl,
@@ -84,12 +87,13 @@ class RunRLBased3(RunSimulation):
             route_file=self.config.route_file_rl,
             use_gui=True,
             yellow_time=4,
-            min_green=5,
+            min_green=32,
             max_green=120,
-            sumo_seed=100,
+            sumo_seed=SumoSeed,
             #observation_class=CO2ObservationFunction,
             simInfra=self.getInfra()
         )
+        print("sumo_seed: ", SumoSeed)
     def preinit(self):
         pass
 
