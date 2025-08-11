@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-08-14 18:09:42 by Eclipse SUMO netedit Version 1.18.0
+-->
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    <!-- Detectors -->
+	<!-- Sb -->
+    <inductionLoop id="Det_00000000" lane="E4_1" pos="61.00" period="300.00" file="Sb.xml"/>
+    <inductionLoop id="Det_00000001" lane="E4_0" pos="61.00" period="300.00" file="Sb.xml"/>
+
+	
+	<!-- Nb -->
+    <inductionLoop id="Det_01000000" lane="E133_4" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000001" lane="E133_3" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000002" lane="E133_2" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000003" lane="E133_1" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01000004" lane="E133_0" pos="90.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002100" lane="E125_4" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002101" lane="E125_3" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002102" lane="E125_2" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002103" lane="E125_1" pos="60.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_01002104" lane="E125_0" pos="60.00" period="300.00" file="Nb.xml"/>
+    
+	<!-- Eb -->
+    <inductionLoop id="Det_02000000" lane="E67_1" pos="155.00" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_02000001" lane="E67_0" pos="155.00" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_02001800" lane="E69_1" pos="66.00" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_02001801" lane="E69_0" pos="66.00" period="300.00" file="Eb.xml"/>
+    
+	<!-- Wb -->
+    <inductionLoop id="Det_03000000" lane="E44_1" pos="160.00" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03000001" lane="E44_0" pos="160.00" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03001700" lane="E41_2" pos="53.50" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03001701" lane="E41_1" pos="53.50" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_03001702" lane="E41_0" pos="53.50" period="300.00" file="Wb.xml"/>
+    
+	<!-- Sb out-->
+	<inductionLoop id="Det_10001004" lane="E1_0" pos="2.00" period="300.00" file="Sb.xml"/>
+    <inductionLoop id="Det_10001100" lane="E0_3" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_10001101" lane="E0_2" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_10001102" lane="E0_1" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_10001103" lane="E0_0" pos="26.30" period="300.00" file="Sb.xml" friendlyPos="1"/>
+	
+	<!-- Nb out-->
+    <inductionLoop id="Det_11003003" lane="E116_1" pos="0.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_11003004" lane="E116_0" pos="0.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_11003200" lane="E112_2" pos="50.00" period="300.00" file="Nb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_11003201" lane="E112_1" pos="50.00" period="300.00" file="Nb.xml"/>
+    <inductionLoop id="Det_11003202" lane="E112_0" pos="50.00" period="300.00" file="Nb.xml"/>
+	
+	<!-- Eb out -->
+    <inductionLoop id="Det_12002604" lane="E70_0" pos="85.50" period="300.00" file="Eb.xml"/>
+    <inductionLoop id="Det_12002800" lane="E71_3" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_12002801" lane="E71_2" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_12002802" lane="E71_1" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+    <inductionLoop id="Det_12002803" lane="E71_0" pos="33.48" period="300.00" file="Eb.xml" friendlyPos="1"/>
+	
+	<!-- Wb out -->
+    <inductionLoop id="Det_13002704" lane="E38_0" pos="52.06" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002800" lane="E37_3" pos="28.66" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002801" lane="E37_2" pos="28.66" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002802" lane="E37_1" pos="28.66" period="300.00" file="Wb.xml"/>
+    <inductionLoop id="Det_13002803" lane="E37_0" pos="28.66" period="300.00" file="Wb.xml"/>
+</additional>

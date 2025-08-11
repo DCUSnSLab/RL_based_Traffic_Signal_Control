@@ -1,91 +1,43 @@
 import os
+import pickle
+from typing import Dict, List
+
 import traci
-import pandas as pd
+from inframanager import InfraManager
+from Infra import SDetector, SStation, SSection, Infra, SECTION_RESULT
 
-class Config_SUMO:
-    sumocfg_path = r'input/your/sumocfg_path'
-    scenario_path = r'input/your/scenario_path'
-    scenario_file = "test.det.xml"
+class RunSimulation(InfraManager):
+    def __init__(self, config, name="Static Control", isExternalSignal=False):
+        super().__init__(config, name, simMode=True, filenames=None, isExternal=isExternalSignal)
+        self.stepbySec = 1
+        self.colDuration = 30  # seconds
 
-    sumoBinary = r'C:/Program Files (x86)/Eclipse/Sumo/bin/sumo-gui'
+        self.traffic_light_id = "TLS_0"
+        self.isStop = True
+        self.step = 0
 
-# Detector
-class Detector:
-    def __init__(self, id):
-        self.id = id
-        self.vehicle_list = []
-        self.vehicle_interval_list = []
-        self.vehicle_total_count = 0
-        self.vehicle_interval_count = 0
-        self.vehicle_total_co2 = 0
-        self.vehicle_interval_co2 = 0
-        self.tmp = 0
+        self.original_logic = None
+        self.logic = None
+        self._rtinfra = self.getInfra()
 
-    def update(self):
-        if traci.inductionloop.getLastStepVehicleIDs(self.id) in self.vehicle_list:
-            pass
-        else:
-            self.vehicle_interval_list += traci.inductionloop.getLastStepVehicleIDs(self.id)
-            self.vehicle_interval_count = len(list(set(self.vehicle_interval_list)))
-            for v_id in self.vehicle_interval_list:
-                self.vehicle_interval_co2 += traci.vehicle.getCO2Emission(v_id)
-                self.vehicle_total_co2 += traci.vehicle.getCO2Emission(v_id)
-
-    def interval_reset(self):
-        self.vehicle_list += self.vehicle_interval_list
-        self.vehicle_interval_list = []
-        self.vehicle_total_count = len(list(set(self.vehicle_list)))
-        self.vehicle_interval_co2 = 0
-
-def merge_data(list):
-    # Create a DataFrame from the detection results
-    df = pd.DataFrame(list)
-
-    # Fill in missing values
-    df.fillna(0)
-
-    #  Combine rows with the same value in the time column
-    merge_df = df.groupby('Time').agg('sum').reset_index()
-
-    list_result = merge_df.values.tolist()
-
-    return list_result
-
-def merge_col(df):
-    merged_columns = pd.DataFrame()
-    # Define the number of columns to merge at a time
-    columns_to_merge = 3
-
-    merged_columns['Time'] = df['Time']
-
-    # Loop through columns starting from the 2nd column
-    for i in range(1, len(df.columns), columns_to_merge):
-        start_col = i
-        end_col = min(i + columns_to_merge, len(df.columns))
-
-        # Merge the selected columns and concatenate them horizontally
-        merged = pd.concat([df.iloc[:, start_col:end_col]], axis=1)
-
-        # Rename the columns with a common prefix (e.g., 'Merged_')
-        merged.columns = [f'Merged_{col}' for col in merged.columns]
-
-        # Concatenate the merged columns to the result DataFrame
-        merged_columns = pd.concat([merged_columns, merged], axis=1)
-
-    return merged_columns
-
-class SumoController:
-    def __init__(self,config):
-        self.config = config
+    def preinit(self):
         self.__set_SUMO()
-        self.detectors = [Detector(detector_id) for detector_id in self.__get_detector_ids(self.config)]
-        self.detection_result_flow = []
-        self.detection_result_co2 = []
-        self.detection_result_co2_flow = []
-        self.detection_result_flow_merge = []
-        self.detection_result_co2_merge = []
-        self.detection_result_co2_flow_merge = []
-        pass
+
+    def _make_Infra(self) -> List[Infra]:
+        infra = None
+        DetectorClass = None
+        StationClass = None
+        SectionClass = None
+
+        DetectorClass = SDetector
+        StationClass = SStation
+        SectionClass = SSection
+
+        dets = self.__init_detector(DetectorClass)
+        station_objects = self.__init_station(dets, StationClass)
+        section_objects = self.__init_section(station_objects, SectionClass)
+
+        return [Infra(self.config.sumocfg_path, self.config.scenario_path, self.config.scenario_file, section_objects, self.sigTypeName)]
 
     def __get_detector_ids(self, config):
         detector_ids = []
@@ -96,52 +48,87 @@ class SumoController:
                     detector_ids.append(parts[1])
         return detector_ids
 
+    def __init_detector(self, detectorclass=SDetector):
+        return [detectorclass(detector_id) for detector_id in self.__get_detector_ids(self.config)]
+
+    def __init_station(self, dets, stationclass=SStation):
+        station_objects = {}
+        for detector in dets:
+            if detector.station_id not in station_objects:
+                station_objects[detector.station_id] = stationclass(detector.station_id)
+            station_objects[detector.station_id].addDetector(detector)
+        return station_objects
+
+    def __init_section(self, stations, sectionclass=SSection) -> Dict[int, SSection]:
+        section_objects = {}
+        logic = None
+        if self.isExternalSignal is False and sectionclass is SSection:
+            logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
+
+        for station_id in stations:
+            section_id = station_id[1]
+            if section_id not in section_objects:
+                section_objects[section_id] = sectionclass(section_id)
+            section_objects[section_id].addStation(stations[station_id])
+
+        #set Default greentime
+        for sid, section in section_objects.items():
+            if logic is not None:
+                section.default_greentime = logic.phases[section.direction.value[1]].duration
+        return section_objects
+
     def __set_SUMO(self):
-        traci.start(["sumo-gui", "-c", self.config.sumocfg_path])
+        traci.start(["sumo-gui", "-c", self.config.sumocfg_path, "--start", "--quit-on-end", "--seed", "100"])
         traci.simulationStep()
 
-    def extract_excel(self):
-        # Create a DataFrame from the detection results
-        df1 = pd.DataFrame(self.detection_result_flow)
-        df2 = pd.DataFrame(self.detection_result_co2)
-        df3 = pd.DataFrame(self.detection_result_co2_flow)
+    def terminate(self):
+        self.isStop = True
 
-        # Fill in missing values
-        df1.fillna(0)
-        df2.fillna(0)
-        df3.fillna(0)
+    def isTermiated(self):
+        return self.isStop
 
-        #  Combine rows with the same value in the time column
-        merge_df1 = df1.groupby('Time').agg('sum').reset_index()
-        merge_df2 = df2.groupby('Time').agg('sum').reset_index()
-        merge_df3 = df3.groupby('Time').agg('sum').reset_index()
+    def saveData(self, filename):
+        if self.isStop is True:
+            print('save data clicked')
+            with open(self._rtinfra.setSaveFileName(filename), "wb") as f:
+                pickle.dump(self._rtinfra, f)
+                print('---file saved at ',self._rtinfra.getFileName())
+            #self.extract_excel()
 
-        excel_writer = pd.ExcelWriter("results_new.xlsx", engine="xlsxwriter")
+    def _refreshSignalPhase(self):
+        traci.trafficlight.setProgramLogic("TLS_0", self.logic)
 
-        merge_df1.to_excel(excel_writer, sheet_name="Flow", index=False)
-        merge_df2.to_excel(excel_writer, sheet_name="CO2", index=False)
-        merge_df3.to_excel(excel_writer, sheet_name="CO2_Flow", index=False)
-        excel_writer.close()
+    def _signalControl(self):
+        pass
 
     def run_simulation(self):
-        step = 0
-        while step <= 360:
+        print('---- start Simulation (signController : ',self.sigTypeName, ") ----")
+        self.step = 0
+        self.isStop = False
+
+        while not self.isStop and self.step <= 11700:
+            #start_time = time.time()
             traci.simulationStep()
-            for detector in self.detectors:
-                detector.update()
 
-            if (step % 30) == 0:
-                # print("Current simulation time:", traci.simulation.getTime())
-                for detector in self.detectors:
-                    self.detection_result_flow.append({"Time": traci.simulation.getTime(), detector.id: int(f"{detector.vehicle_interval_count}")})
-                    self.detection_result_co2.append({"Time": traci.simulation.getTime(), detector.id: float(f"{detector.vehicle_interval_co2:.2f}")})
-                    self.detection_result_co2_flow.append({"Time": traci.simulation.getTime(), detector.id : f"{detector.vehicle_interval_co2:.2f}/{detector.vehicle_interval_count}"})
+            #set logic every step
+            self.logic = traci.trafficlight.getAllProgramLogics("TLS_0")[0]
 
-                    # print(f"{detector.id}에서 통과한 차량 수 : {detector.vehicle_interval_count}")
-                    detector.interval_reset()
-            self.detection_result_flow_merge = merge_data(self.detection_result_flow)
-            self.detection_result_co2_merge = merge_data(self.detection_result_co2)
-            self.detection_result_co2_flow_merge = merge_data(self.detection_result_co2_flow)
-            step += 1
+            self._signalControl()
+            if self.sigTypeName != "Reinforement Learning based Control":
+                self._refreshSignalPhase()
+            # print('Green times: ', end='')
 
+            self._rtinfra.update()
+
+            self.step += 1
+
+        self.isStop = True
         traci.close()
+
+
+    def Check_TrafficLight_State(self):
+        try:
+            signal_states = traci.trafficlight.getRedYellowGreenState("TLS_0")
+        except traci.exceptions.TraCIException:
+            signal_states = 'N/A'
+        return signal_states

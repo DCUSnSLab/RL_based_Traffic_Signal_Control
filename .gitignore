@@ -1,3 +1,10 @@
 __pycache__
 
 .idea
+.xlsx
+*.xlsx
+*.data
+Eb.xml
+Nb.xml
+Sb.xml
+Wb.xml
