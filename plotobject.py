@@ -1,6 +1,7 @@
 import random
 from enum import Enum
 from typing import List
+from hashlib import md5
 
 import numpy as np
 from PyQt5.QtGui import QFont
@@ -10,20 +11,18 @@ import pyqtgraph as pg
 from pyqtgraph import PlotWidget
 from scipy.signal import butter, filtfilt
 
-from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT, SMUtil
+from Infra import Direction, Infra, SMUtil, INTERSECTION_RESULT, NETWORK_RESULT
 
 
 class PLOTMODE(Enum):
-    GREENTIME = (lambda: PlotSection('Section Signal Green Time', 'Time(s)', 'green time', SECTION_RESULT.GREEN_TIME), SECTION_RESULT.GREEN_TIME.name)
-    QUEUE = (lambda: PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', SECTION_RESULT.TRAFFIC_QUEUE), SECTION_RESULT.TRAFFIC_QUEUE.name)
-    CO2TOTALACC = (lambda: PlotInfra('Accumulative Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2_ACC), TOTAL_RESULT.TOTAL_CO2_ACC.name)
-    CO2SECTION = (lambda: PlotSection('CO2 Emissions by Bound', 'Time(s)', 'CO2 Emission(kg)', SECTION_RESULT.SECTION_CO2, ismoving=False), SECTION_RESULT.SECTION_CO2.name)
-    SECTIONSPEEDINT = (lambda: PlotSection('Section Speed by Interval('+str(SMUtil.interval)+'s)', 'Time(every '+str(SMUtil.interval)+'s)', 'Speed(km/h)', SECTION_RESULT.SPEED_INT,ismoving=False, interval=100, istimeinterval=True), SECTION_RESULT.SPEED_INT.name)
-    TOTALCO2 = (lambda: PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2), TOTAL_RESULT.TOTAL_CO2.name, 0)
-    TOTALVOLUMEACC = (lambda: PlotInfra('Accumulative Total Volume', 'Time(s)', 'Volumes(Number of Vehicles)', TOTAL_RESULT.TOTAL_VOLUME), TOTAL_RESULT.TOTAL_VOLUME.name)
-    # WAITINGTIME = (lambda: PlotSection('Section Waiting Time', 'Time(s)', 'Waiting Time', SECTION_RESULT.WAITING_TIME), SECTION_RESULT.WAITING_TIME.name)
-    # TOTALWAITINGTIME = (lambda: PlotSection('Total Waiting Time', 'Time(s)', 'Waiting Time', TOTAL_RESULT.TOTAL_WAITING_TIME), TOTAL_RESULT.TOTAL_WAITING_TIME.name)
-    TOTALQUEUE = (lambda: PlotInfra('Total Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', TOTAL_RESULT.TOTAL_QUEUE),TOTAL_RESULT.TOTAL_QUEUE.name, 0)
+    # Intersection
+    CO2INTERSECTION = (lambda: PlotSection('CO2 Emissions by Intersection', 'Time(s)', 'CO2 Emission(Ton)', INTERSECTION_RESULT.TOTAL_CO2, ismoving=False), INTERSECTION_RESULT.TOTAL_CO2.name)
+    QUEUE = (lambda: PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', INTERSECTION_RESULT.TOTAL_QUEUE), INTERSECTION_RESULT.TOTAL_QUEUE.name)
+    # Infra(Network)
+    TOTALCO2 = (lambda: PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', NETWORK_RESULT.NET_TOTAL_CO2), NETWORK_RESULT.NET_TOTAL_CO2.name, 0)
+    CO2TOTALACC = (lambda: PlotInfra('Accumulative Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', NETWORK_RESULT.NET_TOTAL_CO2_ACC), NETWORK_RESULT.NET_TOTAL_CO2_ACC.name)
+    TOTALVOLUME = (lambda: PlotInfra('Accumulative Total Volume', 'Time(s)', 'Volumes(Number of Vehicles)', NETWORK_RESULT.NET_TOTAL_VOLUME), NETWORK_RESULT.NET_TOTAL_VOLUME.name)
+    TOTALQUEUE = (lambda: PlotInfra('Total Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', NETWORK_RESULT.NET_TOTAL_QUEUE), NETWORK_RESULT.NET_TOTAL_QUEUE.name, 0)
     @classmethod
     def from_string(cls, result):
         for mode in cls:
@@ -36,7 +35,7 @@ class PlotObject():
         self._title = title
         self.__label_bottom = l_bottom
         self.__label_left = l_left
-        self._sel_data: SECTION_RESULT = sel_data
+        self._sel_data: INTERSECTION_RESULT = sel_data
         self._isMoving = ismoving
         self._movingInterval = interval
         self._isTimeInterval = isTimeInterval
@@ -90,10 +89,7 @@ class PlotObject():
             y_max -= d_gap
 
     def addPlot(self, name='default', color='black'):
-        if self._sel_data != SECTION_RESULT.GREEN_TIME:
-            self._plots.append(self._plotwidget.plot(pen=color))
-        else:
-            self._plots.append(self._plotwidget.plot(pen=None, symbol='o', symbolSize=3, symbolBrush=color, symbolPen=None))
+        self._plots.append(self._plotwidget.plot(pen=color))
 
         color_str = f"RGB{color}"
         #add label
@@ -185,51 +181,156 @@ class PlotObject():
 class PlotSection(PlotObject):
     def __init__(self, title, l_bottom, l_left, sel_data, ismoving=False, interval=500, istimeinterval=False):
         super().__init__(title, l_bottom, l_left, sel_data, useComp=False, ismoving=ismoving, interval=interval, isTimeInterval=istimeinterval)
-        self.sectionColor = {}
-        self.__initSectionColor()
-        self.__initSectionplot()
+        self.sectionColor = {}              # intid -> (label, color)
+        self._plots_by_intid = {}           # intid -> PlotDataItem
+        self._labels_by_intid = {}          # intid -> TextItem
 
-    def __initSectionColor(self):
-        for i, dr in enumerate(Direction):
-            print(dr.value[0])
-            self.sectionColor[dr.value[0]] = (dr.name, self.colorset[i])
+    # ---------- 내부 유틸 ----------
 
-    def __initSectionplot(self):
-        for i in range(4):
-            self.addPlot(self.sectionColor[i][0], self.sectionColor[i][1])
+    def __ensure_initialized(self) -> bool:
+        """rtinfra가 준비되면 색/플롯을 1회 초기화한다."""
+        if self.rtinfra is None:
+            return False
+        if not self.sectionColor:
+            self.__initIntersectionColor()
+            self.__initIntersectionplot()
+        return True
+
+    def __initIntersectionColor(self):
+        """교차로 ID(intid)별 고정 색 초기화."""
+        inters = self.rtinfra.get_intersections()
+        if not inters:
+            self.sectionColor = {}
+            return
+
+        # 팔레트: 기본 제공 or colorset 사용
+        base_palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
+                        "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
+                        "#bcbd22", "#17becf"]
+        colors = list(self.colorset) if getattr(self, "colorset", None) else base_palette
+
+        self.sectionColor.clear()
+        for i, intid in enumerate(sorted(inters.keys())):
+            label = f"INT {intid}"
+            color = colors[i % len(colors)]
+            self.sectionColor[intid] = (label, color)
+
+    def __initIntersectionplot(self):
+        """교차로별 PlotDataItem / Label 생성."""
+        inters = self.rtinfra.get_intersections()
+        if not inters:
+            return
+
+        self._plots_by_intid.clear()
+        self._labels_by_intid.clear()
+
+        for intid in sorted(inters.keys()):
+            label, color = self.sectionColor[intid]
+            # 선 생성
+            plot_item = self._plotwidget.plot(pen=color)
+            self._plots.append(plot_item)  # 기존 리스트에도 넣어 GUI 스타일 유지
+            self._plots_by_intid[intid] = plot_item
+
+            # 라벨 생성(기존 addPlot의 표시 형식 유지)
+            color_str = f"RGB{color}"
+            text = pg.TextItem(text='── ' + label + ' (' + color_str + ')', color=color)
+            text.setFont(QFont("Arial", 12))
+            self._plotwidget.addItem(text)
+            self._labels.append(text)
+            self._labels_by_intid[intid] = text
+
+    # ---------- 업데이트 ----------
 
     def updatePlot(self):
-        sections = self.rtinfra.getSections()
-        time_data = None#self.rtinfra.getTime()
-        data = None
-        for i, plot in enumerate(self._plots):
-            if self._isTimeInterval is False:
-                time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIME)
+        # 1) 초기화 보장
+        if not self.__ensure_initialized():
+            return  # rtinfra 아직 없음
+
+        inters = self.rtinfra.get_intersections()
+        if not inters:
+            return
+
+        present_ids = set(inters.keys())
+        line_ids    = set(self._plots_by_intid.keys())
+
+        # 2) 신규 교차로: 라인/라벨 추가
+        added = sorted(present_ids - line_ids)
+        if added:
+            # 색 맵 없으면 재초기화
+            if not self.sectionColor:
+                self.__initIntersectionColor()
+            for intid in added:
+                label, color = self.sectionColor.get(intid, (f"INT {intid}", 'k'))
+                plot_item = self._plotwidget.plot(pen=color)
+                self._plots.append(plot_item)
+                self._plots_by_intid[intid] = plot_item
+
+                text = pg.TextItem(text='── ' + label + f' (RGB{color})', color=color)
+                text.setFont(QFont("Arial", 12))
+                self._plotwidget.addItem(text)
+                self._labels.append(text)
+                self._labels_by_intid[intid] = text
+
+        # 3) 사라진 교차로: 라인/라벨 제거
+        removed = sorted(line_ids - present_ids)
+        for intid in removed:
+            plot_item = self._plots_by_intid.pop(intid, None)
+            label_item = self._labels_by_intid.pop(intid, None)
+            if plot_item is not None:
+                try: self._plotwidget.removeItem(plot_item)
+                except Exception: pass
+                if plot_item in self._plots:
+                    self._plots.remove(plot_item)
+            if label_item is not None:
+                try: self._plotwidget.removeItem(label_item)
+                except Exception: pass
+                if label_item in self._labels:
+                    self._labels.remove(label_item)
+            if intid in self.sectionColor:
+                self.sectionColor.pop(intid, None)
+
+        # 4) 데이터 갱신 + 축 범위 계산
+        xmin = None; xmax = None; ymin = None; ymax = None
+        for intid, inter in inters.items():
+            plot_item = self._plots_by_intid.get(intid)
+            if plot_item is None:
+                continue
+
+            xs = list(inter.get_databy_id(INTERSECTION_RESULT.TIME))
+            ys = list(inter.get_databy_id(self._sel_data))  # ← PLOTMODE에서 넘긴 INTERSECTION_RESULT 사용
+
+            # Ton 단위로 그리려면 여기서 /1000 (현재 Infra는 kg)
+            if self._sel_data in (INTERSECTION_RESULT.TOTAL_CO2, INTERSECTION_RESULT.TOTAL_CO2_ACC):
+                ys = list(np.array(ys) / 1000.0)
+
+            xs, ys = self.trimData(xs, ys)
+            plot_item.setData(xs, ys)
+
+            if (len(xs) > 0) and (len(ys) > 0):  # 또는 (xs.size > 0) and (ys.size > 0)
+                _xmin, _xmax = float(xs[0]), float(xs[-1])
+                _ymin, _ymax = float(np.min(ys)), float(np.max(ys))
+                xmin = _xmin if xmin is None else min(xmin, _xmin)
+                xmax = _xmax if xmax is None else max(xmax, _xmax)
+                ymin = _ymin if ymin is None else min(ymin, _ymin)
+                ymax = _ymax if ymax is None else max(ymax, _ymax)
+
+            plot_item.setData(xs, ys)
+
+        # 5) Y-range 갱신(기존 헬퍼 사용)
+        #   (여기서는 전체 y 범위를 계산해 setYRange 하는 게 UX상 더 빠름)
+        if ymin is not None and ymax is not None:
+            if ymin == ymax:
+                pad = 1.0 if ymax == 0 else abs(ymax) * 0.05
+                self._plotwidget.plotItem.setYRange(ymin - pad, ymax + pad)
+                self._ymin, self._ymax = ymin - pad, ymax + pad
             else:
-                time_data = sections[str(i)].getDatabyID(SECTION_RESULT.TIMEINT)
+                pad = (ymax - ymin) * 0.1
+                self._plotwidget.plotItem.setYRange(ymin - pad, ymax + pad)
+                self._ymin, self._ymax = ymin - pad, ymax + pad
 
-            rawdata = sections[str(i)].getDatabyID(self._sel_data)
-            if self._isMoving is True:
-                time_data = list(time_data)[-self._movingInterval:]
-                rawdata = list(rawdata)[-self._movingInterval:]
-
-            time_data, rawdata = self.trimData(time_data, rawdata)
-
-            if self._sel_data != SECTION_RESULT.GREEN_TIME:
-                #rawdata = self.low_pass_filter(rawdata)
-                rawdata = self.moving_average(rawdata)
-
-            # min_length = min(len(time_data), len(data))
-            # time_data = list(time_data)[:min_length]
-            # data = list(data)[:min_length]
-
-            plot.setData(time_data, rawdata)
-            self.setPlotYRange(rawdata)
-            #self._plotwidget.plotItem.setYRange(min(min(data), 0), max(data)+)
-
-        if self._isMoving is True:
-            self._plotwidget.plotItem.setXRange(max(time_data[-1] - self._movingInterval, 0), time_data[-1])
-            self.updateLabels(max(time_data[-1] - self._movingInterval, 0))
+        # 6) 레이아웃 라벨(텍스트) 위치 조정
+        if xmin is not None:
+            self.updateLabels(xmin)
 
 
 class PlotInfra(PlotObject):
@@ -241,36 +342,37 @@ class PlotInfra(PlotObject):
         self.addPlot('Proposed', 'r')
 
     def updatePlot(self):
-        time_data = self.rtinfra.getTime()
-        data = self.rtinfra.getDatabyID(self._sel_data)
+        # ① 네트워크 시간/데이터 (새 인터페이스 사용)
+        time_data = self.rtinfra.get_databy_id(NETWORK_RESULT.NET_TIME)
+        data = self.rtinfra.get_databy_id(self._sel_data)
 
-        if self._sel_data == TOTAL_RESULT.TOTAL_CO2 or self._sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
-            data = np.array(data) / 1000
-
-        # min_length = min(len(time_data), len(data))
-        # time_data = list(time_data)[:min_length]
-        # data = list(data)[:min_length]
+        # CO2는 Ton 표기
+        if self._sel_data in (NETWORK_RESULT.NET_TOTAL_CO2, NETWORK_RESULT.NET_TOTAL_CO2_ACC):
+            data = np.array(data) / 1000.0
 
         time_data, rawdata = self.trimData(time_data, data)
-        if self._sel_data == TOTAL_RESULT.TOTAL_CO2:
+        if self._sel_data == NETWORK_RESULT.NET_TOTAL_CO2:
             rawdata = self.low_pass_filter(rawdata)
-        self._plots[-1].setData(time_data, rawdata)
+
+        # 'Proposed' 라인은 항상 마지막으로 추가되어 있음
+        if self._plots:
+            self._plots[-1].setData(time_data, rawdata)
         self.setPlotYRange(data)
 
-        compinfra = None
+        # ② 비교 인프라 (있다면)
         if self._compInfra is not None:
             for i, ci in enumerate(self._compInfra):
-                comptime = ci.getTime()
-                compinfra = ci.getDatabyID(self._sel_data) if ci is not None else 0
+                comptime = ci.get_databy_id(NETWORK_RESULT.NET_TIME)
+                compinfra = ci.get_databy_id(self._sel_data) if ci is not None else []
 
-                if self._sel_data == TOTAL_RESULT.TOTAL_CO2  or self._sel_data == TOTAL_RESULT.TOTAL_CO2_ACC:
-                    compinfra = np.array(compinfra) / 1000
+                if self._sel_data in (NETWORK_RESULT.NET_TOTAL_CO2, NETWORK_RESULT.NET_TOTAL_CO2_ACC):
+                    compinfra = np.array(compinfra) / 1000.0
 
-                # min_length = min(len(comptime), len(compinfra))
-                # comptime = list(comptime)[:min_length]
-                # compinfra = list(compinfra)[:min_length]
                 comptime, compinfra = self.trimData(comptime, compinfra)
-                if self._sel_data == TOTAL_RESULT.TOTAL_CO2:
+                if self._sel_data == NETWORK_RESULT.NET_TOTAL_CO2:
                     compinfra = self.low_pass_filter(compinfra)
-                self._plots[i].setData(comptime, compinfra)
+
+                # 비교 곡선은 앞쪽 플롯 슬롯들(i) 사용
+                if i < len(self._plots) - 1:
+                    self._plots[i].setData(comptime, compinfra)
                 self.setPlotYRange(compinfra)

@@ -1,47 +1,53 @@
-from datetime import datetime
+# === 공통 열거형 ===
+import re
+from enum import IntEnum, Enum
 from collections import deque
-from enum import Enum
-from typing import Dict
+from typing import List, Tuple, Optional, Dict, Union
+from datetime import datetime
 
 import traci
-import math
 from traci import TraCIException
 
 class Config_SUMO:
     # SUMO Configuration File
-    sumocfg_path = "New_TestWay/test_cfg.sumocfg"
+    sumocfg_path = "New_TestWay/multi_intersection.sumocfg"
     # SUMO Scenario File Path
     scenario_path = "New_TestWay"
     # SUMO Scenario File(.add.xml)
-    scenario_file = "new_test.add.xml"
-    route_file = "generated_flows_pm.xml"
-    scenario_file_rl = "New_TestWay/test.net_mergy.xml"
-    route_file_rl = "New_TestWay/generated_flows_pm.xml"
+    scenario_file = "multi_intersection.add.xml"
+    route_file = "single_multi_route_v2.rou.xml"
+    scenario_file_rl = "New_TestWay/Goyang_multi_intersection_v2.net_mergy.xml"
+    route_file_rl = "New_TestWay/generated_single_multi_flows_v2.xml"
+    rl_model_path = r"C:\Users\kwon\Desktop\testplace\RL_based_Traffic_Signal_Control\dqn_model_centralized_min5.zip"
 
-class Direction(Enum):
-    SB = (0, 4)
-    NB = (1, 6)
-    EB = (2, 0)
-    WB = (3, 2)
+class Direction(IntEnum):
+    SB = 0
+    NB = 1
+    EB = 2
+    WB = 3
 
     @classmethod
-    def from_first_value(cls, first_value):
-        for member in cls:
-            if member.value[0] == first_value:
-                return member
-        raise ValueError(f"{first_value} is not a valid first value for {cls.__name__}")
+    def from_code(cls, code: int):
+        return Direction(code)
 
-class InputStation(Enum):
-    SB = '000000'
-    NB = '010021'
-    EB = '020018'
-    WB = '030017'
+class Move(IntEnum):
+    L = 0
+    S = 1
+    R = 2
+    U = 3
+    MIXED = 9  # 9=혼합/미지정
 
+class DetectorType(IntEnum):
+    INPUT = 0
+    OUTPUT = 1
+    QUEUE_INPUT = 2
+
+# === 유틸 ===
 class SMUtil:
     MPStoKPH = 3.6
     secPerHour = 3600
     sec = 1
-    interval = 10
+    interval = 10  # 속도 구간 집계 간격(스텝 수)
 
 class SECTION_RESULT(Enum):
     TIME = 'Time'
@@ -55,141 +61,162 @@ class SECTION_RESULT(Enum):
     DIRECTION = 'direction'
     WAITING_TIME = 'waiting time'
 
-class TOTAL_RESULT(Enum):
+class INTERSECTION_RESULT(Enum):
+    """교차로 단위 집계 결과"""
     TIME = 'Time'
-    TOTAL_CO2 = 'Total CO2'
-    TOTAL_CO2_ACC = 'Total CO2 ACC'
-    TOTAL_VOLUME = 'TOtal Volume'
-    TOTAL_WAITING_TIME = 'Total Waiting Time'
-    TOTAL_QUEUE = 'Total Queue'
+    TOTAL_CO2 = 'Intersection CO2'                    # per-step (kg/step)
+    TOTAL_CO2_ACC = 'Intersection CO2 ACC'            # accumulated
+    TOTAL_VOLUME = 'Intersection Volume'              # per-step (veh/step)
+    TOTAL_VOLUME_ACC = 'Intersection Volume ACC'      # accumulated  ← 추가
+    TOTAL_WAITING_TIME = 'Intersection Waiting Time'  # per-step (sec/step)
+    TOTAL_QUEUE = 'Intersection Queue'                # per-step (veh)
 
     @classmethod
     def from_string(cls, string_value):
-        for mode in cls:
-            if mode.value == string_value:
-                return mode
-        raise ValueError(f"{string_value} is not a valid SignalMode value")
+        for m in cls:
+            if m.value == string_value:
+                return m
+        raise ValueError(f"{string_value} is not a valid INTERSECTION_RESULT value")
 
-def get_input_station_value(direction: Direction) -> str:
-    # Direction의 name으로 InputStation을 찾아서 value를 반환
-    return InputStation[direction.name].value
+class NETWORK_RESULT(Enum):
+    """네트워크(Infra) 총합 결과 — 기존 TOTAL_RESULT 대체"""
+    NET_TIME = 'Time'
+    NET_TOTAL_CO2 = 'Total CO2'                    # per-step
+    NET_TOTAL_CO2_ACC = 'Total CO2 ACC'            # accumulated
+    NET_TOTAL_VOLUME = 'Total Volume'              # per-step        ← 의미 정정
+    NET_TOTAL_VOLUME_ACC = 'Total Volume ACC'      # accumulated     ← 추가
+    NET_TOTAL_WAITING_TIME = 'Total Waiting Time'  # per-step
+    NET_TOTAL_QUEUE = 'Total Queue'                # per-step
 
-# Detector
+    @classmethod
+    def from_string(cls, string_value):
+        for m in cls:
+            if m.value == string_value:
+                return m
+        raise ValueError(f"{string_value} is not a valid NETWORK_RESULT value")
+
+
+# === 새 규칙 전용 파서/포맷터 ===
+DET_PATTERN = re.compile(r'^Det_(\d{4})([0-3])([0-3]|9)([0-2])(\d{3})(\d{2})$')
+
+def parse_detector_id(det_id: str):
+    m = DET_PATTERN.match(det_id)
+    if not m:
+        raise ValueError(f"Invalid detector ID: {det_id}")
+    intid = int(m.group(1))
+    bound = int(m.group(2))
+    move  = int(m.group(3))
+    type_ = int(m.group(4))
+    sid   = int(m.group(5))
+    lane  = int(m.group(6))
+    return intid, bound, move, type_, sid, lane
+
+def make_station_key(intid:int, bound:int, type_:int, sid:int) -> Tuple[int,int,int,int]:
+    return (intid, bound, type_, sid)
+
+def station_key_to_str(key: Tuple[int,int,int,int]) -> str:
+    intid, bound, type_, sid = key
+    return f"{intid:04d}{bound}{type_}{sid:03d}"
+
+# =========================
+# Detector / SDetector / DDetector
+# =========================
 class Detector:
-    def __init__(self, id):
+    def __init__(self, id: str):
         self.id = id
-        self.aux, self.bound, self.station_id, self.detector_id = self.parse_detector_id(id)
-        self.flow = 0
-        self.density = 0
+        intid, bound, move, type_, sid, lane = parse_detector_id(id)
+
+        # 규칙 기반 필드
+        self.intid: int = intid
+        self.bound: Direction = Direction.from_code(bound)
+        self.move: Move = Move(move) if move in (0,1,2,3) else Move.MIXED
+        self.type: DetectorType = DetectorType(type_)
+        self.sid: int = sid
+        self.lane: int = lane
+
+        self.station_key = make_station_key(self.intid, int(self.bound), int(self.type), self.sid)
+        self.station_id: str = station_key_to_str(self.station_key)
+
+        # runtime
+        self.flow = 0.0
+        self.density = 0.0
         self.volumes = deque()
         self.speeds = deque()
+        self.prevVehicles = tuple()
         self.append_volumes = self.volumes.append
         self.append_speeds = self.speeds.append
-        self.prevVehicles = tuple()
 
-    def __str__(self):
-        return f"Detector {self.id} at station {self.station_id} volumes {len(self.volumes)} and speeds {len(self.speeds)}"
+    # 헬퍼
+    def is_input(self) -> bool:
+        return self.type in (DetectorType.INPUT, DetectorType.QUEUE_INPUT)
+    def is_output(self) -> bool:
+        return self.type == DetectorType.OUTPUT
+    def is_queue_input(self) -> bool:
+        return self.type == DetectorType.QUEUE_INPUT
 
-    def __repr__(self):
-        return f""
-    def parse_detector_id(self, id):
-        parts = id.split('_')
-        if len(parts) != 2 or not parts[0].startswith("Det"):
-            raise ValueError(f"Invalid detector ID format: {id}")
-        det_info = parts[1]
-        aux = det_info[0]
-        bound = Direction.from_first_value(int(det_info[1]))
-        station_id = det_info[0:6]
-        detector_id = det_info[6:]
-        return aux, bound, station_id, detector_id
-
-    #update detection data by interval
+    # API
     def update(self):
         pass
-
     def getVolume(self):
-        if len(self.volumes) > 0:
-            return self.volumes[-1]
-        else:
-            return -1
-
+        return self.volumes[-1] if self.volumes else -1
     def getVehicles(self):
         return self.prevVehicles
-
     def getSpeed(self):
-        if len(self.speeds) > 0:
-            return self.speeds[-1]
-        else:
-            return -1
+        return self.speeds[-1] if self.speeds else -1
 
-        # 직렬화할 데이터를 정의하는 메서드
+    # 직렬화
     def __getstate__(self):
-        # 기본 상태를 가져온 후, flow, density와 parse_detector_id()에서 생성된 필드를 제거
-        state = self.__dict__.copy()
-        del state['flow']
-        del state['density']
-        del state['aux']
-        del state['bound']
-        del state['station_id']
-        del state['detector_id']
-        state['__class__'] = Detector
-        return state
-
-    # 역직렬화된 데이터를 객체 상태에 복원하는 메서드
-    def __setstate__(self, state):
-        # 상태를 설정하고, flow와 density, 그리고 parse_detector_id()의 필드를 다시 설정
-        self.__dict__.update(state)
-        self.flow = 0
-        self.density = 0
-        self.aux, self.bound, self.station_id, self.detector_id = self.parse_detector_id(self.id)
-        self.__class__ = DDetector #state.pop('__class__', Detector)
+        st = self.__dict__.copy()
+        for k in ("flow", "density", "prevVehicles"):
+            st.pop(k, None)
+        return st
+    def __setstate__(self, st):
+        self.__dict__.update(st)
+        self.flow = 0.0
+        self.density = 0.0
+        self.__class__ = DDetector
 
 class SDetector(Detector):
-    def __int__(self, id):
+    def __init__(self, id: str):
         super().__init__(id)
 
-
     def update(self):
-        vehicle_ids = traci.inductionloop.getLastStepVehicleIDs(self.id)
-        #check duplicated vehicles
-        dupvol = 0
-        speedcnt = 0
-        volume = 0
-        speed = 0
-        for veh in vehicle_ids:
-            if self.prevVehicles is not None and veh in self.prevVehicles:
-                dupvol += 1
+        vids = traci.inductionloop.getLastStepVehicleIDs(self.id)
+        dup = 0; sc = 0; ss = 0.0
+        for v in vids:
+            if self.prevVehicles and v in self.prevVehicles:
+                dup += 1
             else:
-                speed +=  traci.inductionloop.getIntervalMeanSpeed(self.id)
-                speedcnt += 1
-            # if self.id == 'Det_02000000' or self.id == 'Det_02000001' or self.id == 'Det_12002604':
-            #     print(" --- each %s %s -> u : %d"%(self.id, veh, self.speed))
-
-
-
-        volume = traci.inductionloop.getLastStepVehicleNumber(self.id) - dupvol
-        self.flow = volume * SMUtil.secPerHour / SMUtil.sec
-        speed = 0 if speedcnt == 0 else speed / speedcnt
-        self.density = 0 if speed == 0 else self.flow / (speed * SMUtil.MPStoKPH)
-        # if self.id == 'Det_02000000' or self.id == 'Det_02000001' or self.id == 'Det_12002604':
-        #     print("%s -> v : %d, u : %d, k : %d" % (self.id, self.volume, self.speed, self.density))
-            #print('--- lsvid : ', vehicle_ids, self.prevVehicles, traci.inductionloop.getLastStepVehicleNumber(self.id), dupvol )
-        self.prevVehicles = vehicle_ids
-        self.append_volumes(volume)
-        self.append_speeds(speed)
+                # 새로 감지된 차량에 대해 interval 평균속도 사용
+                ss += traci.inductionloop.getIntervalMeanSpeed(self.id); sc += 1
+        vol = traci.inductionloop.getLastStepVehicleNumber(self.id) - dup
+        self.flow = vol * SMUtil.secPerHour / SMUtil.sec
+        avg = 0.0 if sc == 0 else ss / sc
+        self.density = 0.0 if avg == 0 else (self.flow / (avg * SMUtil.MPStoKPH))
+        self.prevVehicles = tuple(vids)
+        self.append_volumes(vol)
+        self.append_speeds(avg)
 
 class DDetector(Detector):
-    def __int__(self, id):
+    def __init__(self, id: str):
         super().__init__(id)
+    def update(self): return
 
-    def update(self):
-        print('test')
-
+# =========================
+# Station / SStation / DStation
+# =========================
 class Station:
-    def __init__(self, id, detectors=None):
-        self.id = id
-        self.dets = [] if detectors is None else detectors
-        self.direction = None
+    """그룹 키: (intid, bound, type, sid)"""
+    def __init__(self, station_key: Tuple[int,int,int,int], detectors: Optional[List[Detector]] = None):
+        self.station_key = station_key
+        self.id = station_key_to_str(station_key)
+        self.dets: List[Detector] = [] if detectors is None else detectors
+
+        intid, bound, type_, sid = self.station_key
+        self.intid = intid
+        self.direction: Direction = Direction.from_code(bound)
+        self.type: DetectorType = DetectorType(type_)
+        self.sid = sid
 
         self.volumes = deque()
         self.speeds = deque()
@@ -200,131 +227,87 @@ class Station:
         self.append_speeds = self.speeds.append
         self.append_speeds_int = self.speeds_int.append
 
-        self.__define_direction()
+        # 내부 유지용 ID 집합
+        self._inputVeh: set = set()
+        self._exitVeh: set = set()
 
-    def __define_direction(self):
-        if not hasattr(self, 'direction') or self.direction is None:
-            self.direction = None if len(self.dets) == 0 else self.dets[0].bound
+    def addDetector(self, det: Detector):
+        self.dets.append(det)
 
-    def addDetector(self, detector):
-        self.dets.append(detector)
-        self.__define_direction()
+    def update(self): pass
 
-    def update(self):
-        pass
+    def getVolume(self): return self.volumes[-1] if self.volumes else -1
+    def getSpeed(self): return self.speeds[-1] if self.speeds else -1
+    def getSpeedInt(self): return self.speeds_int[-1] if self.speeds_int else -1
+    def getSpeedInts(self): return self.speeds_int
+    def getExitVolume(self): return self.exitVolumes[-1] if self.exitVolumes else -1
 
-    def getVolume(self):
-        if len(self.volumes) > 0:
-            return self.volumes[-1]
-        else:
-            return -1
+    def getInputVehIds(self) -> set: return self._inputVeh
+    def getExitVehIds(self) -> set:  return self._exitVeh
 
-    def getSpeed(self):
-        if len(self.speeds) > 0:
-            return self.speeds[-1]
-        else:
-            return -1
-
-    def getSpeedInt(self):
-        if len(self.speeds_int) > 0:
-            return self.speeds_int[-1]
-        else:
-            return -1
-
-    def getSpeedInts(self):
-        return self.speeds_int
-
-    def getExitVolume(self):
-        if len(self.exitVolumes) > 0:
-            return self.exitVolumes[-1]
-        else:
-            return -1
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        del state['direction']
-        state['__class__'] = Station
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self.__define_direction()
-        self.__class__ = DStation #state.pop('__class__', Station)
-        #self.direction = None if len(self.dets) == 0 else self.dets[0].bound
+    def __getstate__(self): return self.__dict__.copy()
+    def __setstate__(self, st):
+        self.__dict__.update(st)
+        self.__class__ = DStation
 
 class SStation(Station):
-    def __init__(self, id, detectors=None):
-        super().__init__(id, detectors)
-        self.inputVeh = set()
-        self.exitVeh = set()
+    def __init__(self, station_key: Tuple[int,int,int,int], detectors: Optional[List[Detector]] = None):
+        super().__init__(station_key, detectors)
 
     def update(self):
-        volume = 0
-        speed = 0
-        exitVolume = 0
-        self.inputVeh = set()
-        self.exitVeh = set()
-
+        vol = 0; sp = 0.0; xvol = 0
+        self._inputVeh.clear(); self._exitVeh.clear()
         for det in self.dets:
             det.update()
+            if det.is_output():
+                xvol += det.getVolume()
+                self._exitVeh.update(det.getVehicles())
+            elif det.is_input():
+                v = det.getVolume()
+                vol += max(0, v)
+                s = det.getSpeed()
+                if s != -1:
+                    sp += s
+                self._inputVeh.update(det.getVehicles())
 
-            if det.aux == '1':
-                exitVolume += det.getVolume()
-                self.exitVeh.update(det.getVehicles())
-            else:
-                volume += det.getVolume()
-                speed += det.getSpeed()
-                self.inputVeh.update(det.getVehicles())
+        # 볼륨 보정(중복방지) 및 평균속도
+        vol = vol if vol == 0 or vol <= len(self._inputVeh) else len(self._inputVeh)
+        xvol = xvol if xvol == 0 or xvol <= len(self._exitVeh) else len(self._exitVeh)
+        avg = -1 if vol == 0 else (sp / vol)
 
-        # if self.id == '020018' or self.id == '020018':
-        #     print('--station id',self.id, self.inputVeh)
+        self.append_volumes(vol)
+        self.append_speeds(avg)
+        self.append_exitVolume(xvol)
 
-        speed = -1 if volume == 0 else speed / volume
-        volume = volume if volume == 0 or volume < len(self.inputVeh) else len(self.inputVeh)
-        exitVolume = exitVolume if exitVolume == 0 or exitVolume < len(self.exitVeh) else len(self.exitVeh)
-
-        self.append_volumes(volume)
-        self.append_speeds(speed)
-        self.append_exitVolume(exitVolume)
-
-        # calculate speed_int
-        scnt = len(self.speeds)
-        if scnt != 0 and scnt % SMUtil.interval == 0:
-            last_interval_speeds = list(self.speeds)[-SMUtil.interval:]
-            valid_speeds = [s for s in last_interval_speeds if s != -1]
-
-            # 유효한 속도의 개수
-            valid_count = len(valid_speeds)
-            average_speed = sum(valid_speeds) / valid_count if valid_count > 0 else 0
-            self.append_speeds_int(average_speed)
-        # if self.id == '020018':
-        #     print('station id',self.id,', volume: ',self.getVolume(), ' speed: ',len(self.speeds_int), (self.getSpeedInt() * SMUtil.MPStoKPH))
-        # #     #print('station id : ', self.id, 'iv: ',self.inputVeh, 'ev: ', self.exitVeh)
-
-    def getVehicleData(self):
-        return list(self.inputVeh), list(self.exitVeh)
-
-    def getInputVehIds(self):
-        return self.inputVeh
-
-    def getExitVehIds(self):
-        return self.exitVeh
+        # 구간(Interval) 속도 집계
+        if len(self.speeds) and (len(self.speeds) % SMUtil.interval == 0):
+            last = list(self.speeds)[-SMUtil.interval:]
+            valid = [s for s in last if s != -1]
+            self.append_speeds_int(0 if not valid else sum(valid)/len(valid))
 
 class DStation(Station):
-    def __init__(self, id, detectors=None):
-        super().__init__(id, detectors)
+    def __init__(self, station_key: Tuple[int,int,int,int], detectors: Optional[List[Detector]] = None):
+        super().__init__(station_key, detectors)
+    def update(self): return
 
-    def update(self):
-        pass
-
+# =========================
+# Section
+# =========================
 class Section:
-    def __init__(self, id, stations):
+    """
+    한 방면(EB/WB/NB/SB)의 집계 단위 베이스 클래스.
+    - stations: 해당 방면에 속한 Station들의 리스트(S/D 혼용 가능)
+    - input_station_lookup (Optional): Intersection에서 주입하는 룩업 맵
+      예) { Direction.EB: { "queue_inputs": ["00022 2 2 200", ...],
+                            "inputs": ["00022 2 0 018", ...] }, ... }
+    """
+    def __init__(self, id: str, stations: Optional[List[Station]] = None):
         self.id = id
-        self.stations = [] if stations is None else stations
-        self.direction = None
+        self.stations: List[Station] = [] if stations is None else stations
+        self.direction: Optional[Direction] = None  # 첫 station 기준으로 설정
         self.default_greentime = 0
 
-        #append data
+        # 섹션 시계열 버퍼
         self.__time = deque()
         self.__timeint = deque()
         self.__section_co2 = deque()
@@ -333,6 +316,8 @@ class Section:
         self.__section_queues = deque()
         self._section_greentime = deque()
         self.__section_waitingtime = deque()
+
+        # append alias
         self.append_section_time = self.__time.append
         self.append_section_timeint = self.__timeint.append
         self.append_section_co2 = self.__section_co2.append
@@ -342,306 +327,369 @@ class Section:
         self.append_section_greentime = self._section_greentime.append
         self.append_section_waitingtime = self.__section_waitingtime.append
 
-        self.dataDic = dict()
-        self.dataDic[SECTION_RESULT.TIME] = self.__time
-        self.dataDic[SECTION_RESULT.TIMEINT] = self.__timeint
-        self.dataDic[SECTION_RESULT.SECTION_CO2] = self.__section_co2
-        self.dataDic[SECTION_RESULT.TRAFFIC_QUEUE] = self.__section_queues
-        self.dataDic[SECTION_RESULT.GREEN_TIME] = self._section_greentime
-        self.dataDic[SECTION_RESULT.VOLUME] = self.__section_volumes
-        self.dataDic[SECTION_RESULT.SPEED_INT] = self.__section_speedint
-        self.dataDic[SECTION_RESULT.WAITING_TIME] = self.__section_waitingtime
-        self.__define_direction()
+        # 조회용 맵
+        self.dataDic: Dict[SECTION_RESULT, deque] = {
+            SECTION_RESULT.TIME: self.__time,
+            SECTION_RESULT.TIMEINT: self.__timeint,
+            SECTION_RESULT.SECTION_CO2: self.__section_co2,
+            SECTION_RESULT.TRAFFIC_QUEUE: self.__section_queues,
+            SECTION_RESULT.GREEN_TIME: self._section_greentime,
+            SECTION_RESULT.VOLUME: self.__section_volumes,
+            SECTION_RESULT.SPEED_INT: self.__section_speedint,
+            SECTION_RESULT.WAITING_TIME: self.__section_waitingtime,
+        }
 
-    def __define_direction(self):
-        if not hasattr(self, 'direction') or self.direction is None:
-            self.direction = None if len(self.stations) == 0 else self.stations[0].direction
+        # Intersection에서 주입될 수 있는 룩업 (없어도 동작)
+        self.input_station_lookup: Optional[Dict] = None
 
-    def addStation(self, station):
-        self.stations.append(station)
-        self.__define_direction()
-
-    def collect_data(self):
-        if len(self.__section_volumes) == 0:
-            return 0, 0, 0, 0
-        else:
-            return self.__section_co2[-1], self.__section_volumes[-1], self.__section_queues[-1], self._section_greentime[-1]
-
-    def getCurrentQueue(self):
-        if len(self.__section_queues) > 0:
-            return self.__section_queues[-1]
-        else:
-            return 0
-
-    def getCurrentCO2(self):
-        if len(self.__section_co2) > 0:
-            return self.__section_co2[-1]
-        else:
-            return 0
-
-    def getCurrentVol(self):
-        if len(self.__section_volumes) > 0:
-            return self.__section_volumes[-1]
-        else:
-            return 0
-
-    def getCurrentGreenTime(self):
-        if len(self._section_greentime) > 0:
-            return self._section_greentime[-1]
-        else:
-            return 0
-
-    def getCurrentWaitingTime(self):
-        if len(self.__section_waitingtime) > 0:
-            return self.__section_waitingtime[-1]
-        else:
-            return 0
-
-    def getCurrentTime(self):
-        if len(self.__time) > 0:
-            return self.__time[-1]
-        return 0
-
-    def getDatabyID(self, id: SECTION_RESULT):
-        return self.dataDic[id]
-
-    def update(self, time):
-        pass
-
-    def print(self):
-        print('this is Section!!')
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        del state['direction']  # direction은 계산 가능한 필드이므로 직렬화에서 제외
-        state['__class__'] = Section
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        # direction은 stations의 첫 번째 항목으로부터 다시 계산하여 설정
-        self.__define_direction()
-        self.__class__ = DSection#state.pop('__class__', Section)
-
-class SSection(Section):
-    def __init__(self, id, stations=None):
-        super().__init__(id, stations)
-
-        #for data
+        # 런타임 상태 (SSection에서 사용)
         self.traffic_queue = 0
         self.current_greentime = -1
         self.section_vehicles = set()
 
-    def setGreenTime(self, greetime, logic):
-        self.current_greentime = greetime
-        if logic is not None:
-            self.__setSignalGreenTime(greetime, logic)
+        self.__define_direction()
 
+    # 내부: 방향 결정
+    def __define_direction(self):
+        if self.direction is None and self.stations:
+            st0 = self.stations[0]
+            self.direction = getattr(st0, "direction", None)
+
+    # 구성 변경
+    def addStation(self, station: Station):
+        self.stations.append(station)
+        if self.direction is None and hasattr(station, "direction"):
+            self.direction = station.direction
+
+    # 조회 도우미
+    def collect_data(self):
+        if len(self.dataDic[SECTION_RESULT.VOLUME]) == 0:
+            return 0, 0, 0, 0
+        return (
+            self.getCurrentCO2(),
+            self.getCurrentVol(),
+            self.getCurrentQueue(),
+            self.getCurrentGreenTime(),
+        )
+
+    def getCurrentQueue(self) -> int:
+        q = self.dataDic[SECTION_RESULT.TRAFFIC_QUEUE]
+        return q[-1] if q else 0
+
+    def getCurrentCO2(self) -> float:
+        c = self.dataDic[SECTION_RESULT.SECTION_CO2]
+        return c[-1] if c else 0.0
+
+    def getCurrentVol(self) -> int:
+        v = self.dataDic[SECTION_RESULT.VOLUME]
+        return v[-1] if v else 0
+
+    def getCurrentGreenTime(self) -> float:
+        g = self.dataDic[SECTION_RESULT.GREEN_TIME]
+        return g[-1] if g else 0.0
+
+    def getCurrentWaitingTime(self) -> float:
+        w = self.dataDic[SECTION_RESULT.WAITING_TIME]
+        return w[-1] if w else 0.0
+
+    def getCurrentTime(self) -> float:
+        t = self.dataDic[SECTION_RESULT.TIME]
+        return t[-1] if t else 0.0
+
+    def getDatabyID(self, id: SECTION_RESULT):
+        return self.dataDic[id]
+
+    # 입력 스테이션 선택(큐계산용) — 룩업 우선, 없으면 타입 기반 기본 규칙
+    def _select_input_station_ids(self) -> List[str]:
+        # 룩업 사용
+        if self.input_station_lookup and self.direction in self.input_station_lookup:
+            cfg = self.input_station_lookup[self.direction] or {}
+            # 우선순위: queue_inputs > inputs
+            if 'queue_inputs' in cfg and cfg['queue_inputs']:
+                return list(cfg['queue_inputs'])
+            if 'inputs' in cfg and cfg['inputs']:
+                return list(cfg['inputs'])
+
+        # 기본 규칙: QUEUE_INPUT 우선, 없으면 INPUT 전체
+        q_ids = [st.id for st in self.stations if st.type == DetectorType.QUEUE_INPUT]
+        if q_ids:
+            return q_ids
+        return [st.id for st in self.stations if st.type == DetectorType.INPUT]
+
+    # 런타임 업데이트(구현은 SSection에서)
+    def update(self, time: float):
+        pass
+
+    # 신호시간 기록 보조 (SSection에서 사용)
     def updateGreentime(self):
         if self.current_greentime != -1:
             self.append_section_greentime(self.current_greentime)
         else:
-            if len(self._section_greentime) > 0:
-                self.append_section_greentime(self._section_greentime[-1])
+            g = self.dataDic[SECTION_RESULT.GREEN_TIME]
+            if len(g) > 0:
+                self.append_section_greentime(g[-1])
             else:
                 self.append_section_greentime(self.default_greentime)
 
+    # 디버그
+    def print(self):
+        print('this is Section!!')
 
-    def __setSignalGreenTime(self, time, logic):
-        logic.phases[self.direction.value[1]].duration = time
+    # 직렬화 훅
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['__class__'] = 'Section'
+        return state
 
-    def update(self, time):
-        section_co2_emission = 0
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.__define_direction()
+        self.__class__ = DSection  # 오프라인 뷰 전환
+
+class SSection(Section):
+    def update(self, time: float):
+        section_co2_emission = 0.0
         section_volume = 0
-        removal_veh = list()
-        speedcnt = 0
-        pscnt = len(self.getDatabyID(SECTION_RESULT.SPEED_INT))
-        isspeedadded = False
-        speedsum = 0
-        waiting_time = 0
-        for i, station in enumerate(self.stations):
-            #update station data
-            station.update()
+        removal_veh = []
+        prev_cnt = len(self.getDatabyID(SECTION_RESULT.SPEED_INT))
+        speed_kph_sum = 0.0;
+        speed_kph_cnt = 0;
+        got_new = False
 
-            if i == 0:
-                section_volume += station.getVolume()
-                self.section_vehicles.update(station.getInputVehIds())
+        queue_input_ids = set(self._select_input_station_ids())
+        inflow_sum = 0;
+        outflow_sum = 0
 
-            #update input station data according to InputStation Setup
-            if station.id == get_input_station_value(self.direction):
-                self.traffic_queue += station.getVolume()
+        # ✅ 더 이상 초기화하지 않음: self.section_vehicles 는 '구역 내 추적 집합'
+        if not hasattr(self, "section_vehicles") or self.section_vehicles is None:
+            self.section_vehicles = set()
 
-            self.traffic_queue -= station.getExitVolume()
-            self.section_vehicles.difference_update(station.getExitVehIds())
+        for st in self.stations:
+            st.update()
 
-            scnt = len(station.getSpeedInts())
+            # 유입 집계 및 '구역 내' 집합 갱신
+            if st.type in (DetectorType.INPUT, DetectorType.QUEUE_INPUT):
+                v = st.getVolume()
+                section_volume += max(0, v)
+                # 이 스텝에 입력 검지된 차량을 '구역 내'에 추가
+                self.section_vehicles.update(st.getInputVehIds())
 
-            if i == 0 and scnt > pscnt:
-                isspeedadded = True
-                sspeed = station.getSpeedInt()
-                if sspeed != -1 :
-                    speedsum += station.getSpeedInt()
-                    speedcnt += 1
-            # if self.id == '2':
-            #     if station.getExitVolume() > 0:
-            #         print('----exit vol : ',station.getExitVolume())
+            # 큐/유출 집계 + '구역 내' 제거
+            if st.id in queue_input_ids:
+                inflow_sum += max(0, st.getVolume())
+            if st.type == DetectorType.OUTPUT:
+                outflow_sum += max(0, st.getExitVolume())
+                # 이 스텝에 출구 검지된 차량은 '구역 내'에서 제거
+                self.section_vehicles.difference_update(st.getExitVehIds())
 
-        #calculate average speed
-        if isspeedadded is True:
-            average_speed_int = speedsum / speedcnt * SMUtil.MPStoKPH
-            self.append_section_speedint(average_speed_int)
+            # 속도 interval 집계(기존 그대로)
+            scnt = len(st.getSpeedInts())
+            if st.type in (DetectorType.INPUT, DetectorType.QUEUE_INPUT) and scnt > prev_cnt:
+                s = st.getSpeedInt()
+                if s != -1:
+                    got_new = True
+                    speed_kph_sum += s * SMUtil.MPStoKPH
+                    speed_kph_cnt += 1
+
+        if got_new:
+            self.append_section_speedint(0.0 if speed_kph_cnt == 0 else speed_kph_sum / speed_kph_cnt)
             self.append_section_timeint(time)
 
-        for vehicle in self.section_vehicles:
+        #  '구역 내' 차량들의 CO2/대기시간 합산
+        for veh in list(self.section_vehicles):
             try:
-                if traci.vehicle.getCO2Emission(vehicle) >= 0:
-                    section_co2_emission += traci.vehicle.getCO2Emission(vehicle) / 1000
-                waiting_time += traci.vehicle.getWaitingTime(vehicle)
+                section_co2_emission += traci.vehicle.getCO2Emission(veh) / 1000.0  # kg/step
             except TraCIException:
-                print('------------------------disappear -> ',vehicle)
-                #self.section_vehicles.remove(vehicle)
-                removal_veh.append(vehicle)
+                # 시뮬에서 사라진 차량 등은 추적 집합에서 제거
+                removal_veh.append(veh)
+        if removal_veh:
+            self.section_vehicles.difference_update(removal_veh)
 
-        self.section_vehicles.difference_update(removal_veh)
+        waiting_time_sum = 0.0
+        for veh in list(self.section_vehicles):
+            try:
+                waiting_time_sum += traci.vehicle.getWaitingTime(veh)
+            except TraCIException:
+                pass
 
-        self.append_section_waitingtime(waiting_time)
+        # 큐/시계열(기존 그대로)
+        self.traffic_queue = max(0, self.traffic_queue + inflow_sum - outflow_sum)
+
+        self.append_section_waitingtime(waiting_time_sum)
         self.append_section_queues(self.traffic_queue)
         self.append_section_co2(section_co2_emission)
         self.append_section_volumes(section_volume)
         self.append_section_time(time)
         self.updateGreentime()
-        # if self.id == '2':
-        #     print('Sid : ',self.id, ', Queue : ')
-        #     print('---- speedint : ', self.getDatabyID(SECTION_RESULT.SPEED_INT))
-        #self.collect_data()
-    def print(self):
-        print('this is SSection!!')
 
 class DSection(Section):
-    def __init__(self, id, stations=None):
+    """오프라인(읽기 전용) 섹션. TraCI 의존 없음."""
+    def __init__(self, id: str, stations: Optional[List[Station]] = None):
         super().__init__(id, stations)
-
-    def update(self):
-        pass
-
+    def update(self, time: float): return
     def print(self):
         print('this is DSection!!')
 
+# =========================
+# Intersection (저장 기능 제거 버전)
+# =========================
+class Intersection:
+    """
+    교차로 단위 베이스: 저장 관련 메서드 제거.
+    sections: Dict[Direction, Section]
+    """
+    def __init__(
+        self,
+        intersection_id: Union[str, int],
+        sections: Dict[Direction, Section],
+        input_station_map: Optional[Dict[Direction, Dict[str, List[str]]]] = None,
+        sig_type: Optional[str] = None
+    ):
+        self.id = intersection_id
+        self.sections = sections
+        self.input_station_map = input_station_map
+        self.sigType: Optional[str] = sig_type
+
+        # 섹션에 룩업 주입
+        if self.input_station_map:
+            for sec in self.sections.values():
+                try:
+                    sec.input_station_lookup = self.input_station_map
+                except Exception:
+                    pass
+
+        # 교차로 시계열
+        self._time = deque()
+        self._co2 = deque()
+        self._co2_acc = deque()
+        self._vol = deque()
+        self._vol_acc = deque()
+        self._wait = deque()
+        self._queue = deque()
+
+        self.dataDic: Dict[INTERSECTION_RESULT, deque] = {
+            INTERSECTION_RESULT.TIME: self._time,
+            INTERSECTION_RESULT.TOTAL_CO2: self._co2,
+            INTERSECTION_RESULT.TOTAL_CO2_ACC: self._co2_acc,
+            INTERSECTION_RESULT.TOTAL_VOLUME: self._vol,               # per-step로 정정
+            INTERSECTION_RESULT.TOTAL_VOLUME_ACC: self._vol_acc,       # 누적 추가
+            INTERSECTION_RESULT.TOTAL_WAITING_TIME: self._wait,
+            INTERSECTION_RESULT.TOTAL_QUEUE: self._queue,
+        }
+
+    def update(self, time: float): pass
+    def get_sections(self): return self.sections
+    def get_databy_id(self, tr: INTERSECTION_RESULT): return self.dataDic[tr]
+    def get_current_co2(self): return self._co2[-1] if self._co2 else 0.0
+    def get_current_volume(self): return self._vol[-1] if self._vol else 0.0
+    def get_current_waiting(self): return self._wait[-1] if self._wait else 0.0
+    def get_current_queue(self): return self._queue[-1] if self._queue else 0.0
+    def get_time_series(self): return self._time
+
+    def __getstate__(self): return self.__dict__.copy()
+    def __setstate__(self, st):
+        self.__dict__.update(st)
+        self.__class__ = DIntersection
+
+class SIntersection(Intersection):
+    def __init__(self, intersection_id, sections, input_station_map=None, sig_type=None):
+        super().__init__(intersection_id, sections, input_station_map, sig_type)
+
+    def update(self, time: float):
+        co2 = vol = wait = queue = 0.0
+        for sec in self.sections.values():
+            sec.update(time)
+            co2   += sec.getCurrentCO2()
+            vol   += sec.getCurrentVol()
+            wait  += sec.getCurrentWaitingTime()
+            q = sec.getCurrentQueue()
+            queue += (q if q >= 0 else 0)
+
+        self._co2.append(co2)
+        self._co2_acc.append((self._co2_acc[-1] if self._co2_acc else 0.0) + co2)
+        self._vol.append(vol)                                           # per-step 유지
+        self._vol_acc.append((self._vol_acc[-1] if self._vol_acc else 0.0) + vol)  # 누적 유지
+        self._wait.append(wait)
+        self._queue.append(queue)
+        self._time.append(time)
+
+class DIntersection(Intersection):
+    def __init__(self, intersection_id, sections, input_station_map=None, sig_type=None):
+        super().__init__(intersection_id, sections, input_station_map, sig_type)
+    def update(self, time: float): return
+
+# =========================
+# Infra
+# =========================
 class Infra:
-    def __init__(self, sumocfg_path, scenario_path, scenario_file, sections, sigtype=None):
+    """
+    - intersections: Dict[Union[str,int], Intersection]
+    - 네트워크 총합(Infra 단위)만 저장 책임 보유
+    """
+    def __init__(self, intersections, sumocfg_path, scenario_path, scenario_file, sig_type=None):
+        self.intersections: Dict[Union[str,int], Intersection] = intersections
         self.sumocfg_path = sumocfg_path
-        # SUMO Scenario File Path
         self.scenario_path = scenario_path
-        # SUMO Scenario File(.add.xml)
         self.scenario_file = scenario_file
-        self.__sections = sections
+        self.sigType = sig_type
 
-        self.__time = deque()
-        self.__totalCO2 = deque()
-        self.__totalCO2ACC = deque()
-        self.__totalVolume = deque()
-        self.__totalWaitingTime = deque()
-        self.__totalQuue = deque()
-        self.append_time = self.__time.append
-        self.append_totalCO2 = self.__totalCO2.append
-        self.append_totalCO2ACC = self.__totalCO2ACC.append
-        self.append_totalVolume = self.__totalVolume.append
-        self.append_totalWaitingTime = self.__totalWaitingTime.append
-        self.append_totalQueue = self.__totalQuue.append
-        self.dataDic = {}
-        self.dataDic[TOTAL_RESULT.TIME] = self.__time
-        self.dataDic[TOTAL_RESULT.TOTAL_CO2] = self.__totalCO2
-        self.dataDic[TOTAL_RESULT.TOTAL_CO2_ACC] = self.__totalCO2ACC
-        self.dataDic[TOTAL_RESULT.TOTAL_VOLUME] = self.__totalVolume
-        self.dataDic[TOTAL_RESULT.TOTAL_WAITING_TIME] = self.__totalWaitingTime
-        self.dataDic[TOTAL_RESULT.TOTAL_QUEUE] = self.__totalQuue
+        # 네트워크 시계열
+        self._time = deque()
+        self._co2 = deque()
+        self._co2_acc = deque()
+        self._vol = deque()          # per-step 네트워크 볼륨  ← 추가
+        self._vol_acc = deque()
+        self._wait = deque()
+        self._queue = deque()
 
-        self.sigType: str = sigtype
-        self.__savedTime: datetime = None
-        self.__savefileName: str = None
+        self.dataDic: Dict[NETWORK_RESULT, deque] = {
+            NETWORK_RESULT.NET_TIME: self._time,
+            NETWORK_RESULT.NET_TOTAL_CO2: self._co2,
+            NETWORK_RESULT.NET_TOTAL_CO2_ACC: self._co2_acc,
+            NETWORK_RESULT.NET_TOTAL_VOLUME: self._vol,            # per-step로 정정
+            NETWORK_RESULT.NET_TOTAL_VOLUME_ACC: self._vol_acc,    # 누적 추가
+            NETWORK_RESULT.NET_TOTAL_WAITING_TIME: self._wait,
+            NETWORK_RESULT.NET_TOTAL_QUEUE: self._queue,
+        }
+
+        # 저장 메타 (Infra에만)
+        self.__savedTime: Optional[datetime] = None
+        self.__savefileName: Optional[str] = None
 
     def update(self):
-        totalCO2 = 0
-        totalCO2ACC = 0
-        totalVol = 0
-        totalWaitingTime = 0
-        totalQueue = 0
         time = traci.simulation.getTime()
-        for section_id, section in self.getSections().items():
-            section.update(time)
-            totalCO2 += section.getCurrentCO2()
-            totalVol += section.getCurrentVol()
-            totalWaitingTime += section.getCurrentWaitingTime()
-            totalQueue += section.getCurrentQueue()
+        net_co2 = net_vol = net_wait = net_queue = 0.0
+        for inter in self.intersections.values():
+            inter.update(time)
+            net_co2   += inter.get_current_co2()
+            net_vol   += inter.get_current_volume()
+            net_wait  += inter.get_current_waiting()
+            net_queue += inter.get_current_queue()
 
-        # vehicle_ids = traci.vehicle.getIDList()
-        # for vehicle_id in vehicle_ids:
-        #     totalCO2 += traci.vehicle.getCO2Emission(vehicle_id) / 1000
+        self._co2.append(net_co2)
+        self._co2_acc.append((self._co2_acc[-1] if self._co2_acc else 0.0) + net_co2)
 
-        totalCO2ACC = self.__totalCO2ACC[-1] + totalCO2 if len(self.__totalCO2ACC) > 0 else totalCO2
-        totalVol = self.__totalVolume[-1] + totalVol if len(self.__totalVolume) > 0 else totalVol
-        self.append_totalCO2(totalCO2)
-        self.append_totalCO2ACC(totalCO2ACC)
-        self.append_totalVolume(totalVol)
-        # self.append_totalWaitingTime(totalWaitingTime)
-        self.append_totalQueue(totalQueue)
-        self.append_time(time)
+        self._vol.append(net_vol)                                            # per-step 추가
+        self._vol_acc.append((self._vol_acc[-1] if self._vol_acc else 0.0) + net_vol)
 
-    def getDatabyID(self, totalresult: TOTAL_RESULT):
-        return self.dataDic[totalresult]
+        self._wait.append(net_wait)
+        self._queue.append(net_queue)
+        self._time.append(time)
 
-    def getDatabyName(self, name: str):
-        return self.getDatabyID(TOTAL_RESULT.from_string(name))
+    def get_databy_id(self, tr: NETWORK_RESULT): return self.dataDic[tr]
+    def get_intersections(self): return self.intersections
 
-    def getTotalCO2(self):
-        if len(self.__totalCO2) > 0:
-            return self.__totalCO2[-1]
-        else:
-            return 0
-
-    def getTotalCO2mg(self):
-        return self.getTotalCO2() * 100
-
-    def getTotalWaitingTime(self):
-        if len(self.__totalWaitingTime) > 0:
-            return self.__totalWaitingTime[-1]
-        else:
-            return 0
-
-    def getTime(self):
-        return self.__time
-
-    def getSections(self) -> dict:
-        return self.__sections
-
-    def setSaveFileName(self, name=None):
-        if self.__savedTime is None:
-            self.setCurrentTime()
-
-        filename = self.sigType + '_'
-        if name is not None:
-            filename = name + '_' + filename
-
-        formatted_time = self.__savedTime.strftime("%Y%m%d%H%M%S")
-        filename = filename+formatted_time
-
-        self.__savefileName = filename + '.data'
+    def setSaveFileName(self, name: Optional[str] = None) -> str:
+        if self.__savedTime is None: self.setCurrentTime()
+        prefix = (self.sigType + '_') if self.sigType else ''
+        if name: prefix = name + '_' + prefix
+        ts = self.__savedTime.strftime("%Y%m%d%H%M%S")
+        self.__savefileName = f"{prefix}NET_{ts}.data"
         return self.__savefileName
 
-    def getFileName(self):
-        return self.__savefileName
+    def getFileName(self): return self.__savefileName
+    def getSavedTime(self): return self.__savedTime
+    def setCurrentTime(self): self.__savedTime = datetime.now()
 
-    def getSavedTime(self):
-        return self.__savedTime
-
-    def setCurrentTime(self):
-        self.__savedTime = datetime.now()
-        print(self.__savedTime)
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        return state
-
-    # 역직렬화된 데이터를 객체 상태에 복원하는 메서드
-    def __setstate__(self, state):
-        self.__dict__.update(state)
+    def __getstate__(self): return self.__dict__.copy()
+    def __setstate__(self, st): self.__dict__.update(st)

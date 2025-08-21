@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+	<input>
+		<!--additional-files value="test.add.xml"/-->
+		<net-file value="Goyang_multi_intersection_v2.net.xml"/>
+		<additional-files value="multi_intersection.add.xml"/>
+		<route-files value="generated_single_multi_flows_v2.xml"/>
+	</input>
+
+</configuration>

@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QGridLayout, QHBoxLayout, QPushButton, QVBoxLayout, QComboBox
 
-from Infra import SECTION_RESULT, TOTAL_RESULT
+from Infra import INTERSECTION_RESULT, NETWORK_RESULT
 from plotobject import PlotSection, PlotInfra, PLOTMODE, PlotObject
 
 

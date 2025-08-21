@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, pyqtSlot, Qt
 import pyqtgraph as pg
 
-from Infra import Direction, Infra, SECTION_RESULT, TOTAL_RESULT, Config_SUMO
+from Infra import Direction, Infra, INTERSECTION_RESULT, NETWORK_RESULT, Config_SUMO
 from graphmanager import GraphLayout
 from plotobject import PlotSection, PlotInfra
 from runactuated import RunActuated
@@ -35,21 +35,12 @@ class TrafficSimulatorApp(QMainWindow):
         self.compData: List[str] = list()
         self.comparedInfras: List[Infra] = None
 
-        self.sectionColor = {}
-        self.initSectionColor()
-
         self.plotlist = dict()
 
         # 그래프 업데이트 제어 플래그 (True이면 업데이트 중지)
         self.graph_paused = False
 
         self.initUI()
-
-    def initSectionColor(self):
-        colorset = ('r', 'g', 'b', 'c')
-        for i, dr in enumerate(Direction):
-            print(dr.value[0])
-            self.sectionColor[dr.value[0]] = (dr.name, colorset[i])
 
     def initUI(self):
         self.setWindowTitle("Traffic Simulator Visualization")
@@ -101,27 +92,27 @@ class TrafficSimulatorApp(QMainWindow):
         # main_layout.addLayout(emission_layout)
         main_layout.addLayout(bottom_layout)
 
-        # --- Signal Plot ---
-        ps = PlotSection('Section Signal Green Time', 'Time(s)', 'green time', SECTION_RESULT.GREEN_TIME)
-        self.plotlist['greentime'] = ps
+        # --- Infra Total CO2 Emission Plot ---
+        ps = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', NETWORK_RESULT.NET_TOTAL_CO2)
+        self.plotlist['totalco2'] = ps
         signal_layout.addWidget(ps.getWidtget())
 
         # --- Queue Plot ---
-        qs = PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', SECTION_RESULT.TRAFFIC_QUEUE)
+        qs = PlotSection('Queue', 'Time(s)', 'Queue Length (Number of Vehicles)', INTERSECTION_RESULT.TOTAL_QUEUE)
         self.plotlist['queue'] = qs
         queue_layout.addWidget(qs.getWidtget())
 
-        # --- Total CO2 Emission Plot ---
-        self.totalte = PlotInfra('Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)', TOTAL_RESULT.TOTAL_CO2,
-                                 self.signalControlType)
-        self.plotlist['totalco2'] = self.totalte
+        # --- Total CO2 Acc Emission Plot ---
+        self.totalte = PlotInfra('Accumulative Total CO2 Emissions', 'Time(s)', 'CO2 Emission(Ton)',
+                                 NETWORK_RESULT.NET_TOTAL_CO2_ACC)
+        self.plotlist['totalco2acc'] = self.totalte
         self.emit1.addWidget(self.totalte.getWidtget())
         emission_layout.addLayout(self.emit1)
 
-        # --- CO2 Emission by Bound Plot ---
-        co2 = PlotSection('CO2 Emissions by Bound', 'Time(s)', 'CO2 Emission(kg)', SECTION_RESULT.SECTION_CO2,
-                          ismoving=True)
-        self.plotlist['co2bound'] = co2
+        # --- CO2 Emission by intersection Plot ---
+        co2 = PlotSection('CO2 Emissions by Intersection', 'Time(s)', 'CO2 Emission(Ton)',
+                          INTERSECTION_RESULT.TOTAL_CO2, ismoving=True)
+        self.plotlist['co2_intersecion'] = co2
         emission_layout.addWidget(co2.getWidtget())
 
         # --- Select Signal Type ---
@@ -258,7 +249,6 @@ class TrafficSimulatorApp(QMainWindow):
     def extract_savedData(self):
         if self.controller is None:
             self.initialize_controller(extract=True)
-            self.controller.extract_excel(True)
 
     def extract_button_clicked(self):
         if self.controller:
@@ -296,34 +286,6 @@ class TrafficSimulatorApp(QMainWindow):
             formatted_without_extension = self.format_filename(without_extension)
             result.append((f, formatted_without_extension))
         return result
-
-    @pyqtSlot(object)
-    def draw_bar_chart(self, rtinfra: Infra):
-        self.bar_x = []
-        self.bar_y = []
-        labels = dict()
-        try:
-            sections = rtinfra.getSections().values()
-            for i, section in enumerate(sections):
-                self.bar_x.append(i + 1)
-                self.bar_y.append(section.getCurrentQueue())
-                labels[i + 1] = section.direction.name
-
-            self.queue_graph.clear()
-            bg = pg.BarGraphItem(x=self.bar_x, height=self.bar_y, width=0.6, brush='y', pen='y')
-            self.queue_graph.addItem(bg)
-
-            for i in range(len(self.bar_x)):
-                text_item = pg.TextItem(text=labels[self.bar_x[i]], anchor=(0.5, 1.5))
-                text_item.setColor('k')
-                self.queue_graph.addItem(text_item)
-                text_item.setPos(self.bar_x[i], 0)
-                value_item = pg.TextItem(text=str(self.bar_y[i]), anchor=(0.5, -0.3))
-                value_item.setColor('k')
-                self.queue_graph.addItem(value_item)
-                value_item.setPos(self.bar_x[i], self.bar_y[i])
-        except IndexError:
-            pass
 
     @pyqtSlot(object)
     def update_graph(self, rtinfra):

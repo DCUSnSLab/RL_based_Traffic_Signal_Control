@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='utf-8'?>
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    
+    <inductionLoop id="Det_000119220000" lane="E1.367_3" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000119220001" lane="E1.367_2" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000119220002" lane="E1.367_1" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000129220000" lane="E0.149_3" pos="154.09" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000129220001" lane="E0.149_2" pos="154.07" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000129220002" lane="E0.149_1" pos="154.09" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000129220003" lane="E0.149_0" pos="154.11" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000139220000" lane="E2.215_2" pos="41.11" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000139220001" lane="E2.215_1" pos="41.10" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000139220002" lane="E2.215_0" pos="41.08" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000110100200" lane="E1.548_3" pos="23.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000110100201" lane="E1.548_2" pos="23.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000110100202" lane="E1.548_1" pos="23.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000111100203" lane="E1.548_0" pos="23.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000112100204" lane="E26_0" pos="5.16" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000120100200" lane="E0.456.42_4" pos="29.28" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000121100201" lane="E0.456.42_3" pos="29.28" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000121100202" lane="E0.456.42_2" pos="29.28" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000121100203" lane="E0.456.42_1" pos="29.28" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000121100204" lane="E0.456.42_0" pos="29.28" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000122100205" lane="E0.456_0" pos="23.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000130100200" lane="E2.438_4" pos="18.46" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000131100201" lane="E2.438_3" pos="18.46" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000131100202" lane="E2.438_2" pos="18.46" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000131100203" lane="E2.438_1" pos="18.46" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000132100204" lane="E2.438_0" pos="18.46" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000209220000" lane="E10_2" pos="27.50" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000209220001" lane="E10_1" pos="27.48" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000209220002" lane="E10_0" pos="27.47" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000219220000" lane="E8.86_3" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000219220001" lane="E8.86_2" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000219220002" lane="E8.86_1" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000219220003" lane="E8.86_0" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000229220000" lane="E4.297_4" pos="0.07" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000229220001" lane="E4.297_3" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000229220002" lane="E4.297_2" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000229220003" lane="E4.297_1" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000229220004" lane="E4.297_0" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000239220000" lane="E9.304_3" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000239220001" lane="E9.304_2" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000239220002" lane="E9.304_1" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000239220003" lane="E9.304_0" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000200100100" lane="E10.168_3" pos="31.57" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000200100102" lane="E10.168_2" pos="31.57" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000201100103" lane="E10.168_1" pos="31.57" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000201100104" lane="E10.168_0" pos="31.57" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000210100200" lane="E8.261_3" pos="41.30" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000210100201" lane="E8.261_2" pos="41.30" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000211100202" lane="E8.261_1" pos="41.30" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000211100203" lane="E8.261_0" pos="41.30" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000220100200" lane="E4.434_4" pos="31.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000221100201" lane="E4.434_3" pos="31.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000221100202" lane="E4.434_2" pos="31.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000221100203" lane="E4.434_1" pos="31.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000222100204" lane="E4.434_0" pos="31.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000230100200" lane="E9.400_5" pos="90.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000230100201" lane="E9.400_4" pos="90.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000231100202" lane="E9.400_3" pos="90.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000231100203" lane="E9.400_2" pos="90.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000231100204" lane="E9.400_1" pos="90.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000232100205" lane="E9.400_0" pos="90.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000309220000" lane="E16.173_3" pos="28.12" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000309220001" lane="E16.173_2" pos="28.11" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000309220002" lane="E16.173_1" pos="28.10" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000309220003" lane="E16.173_0" pos="28.13" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000319220000" lane="E51_0" pos="107.63" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000319220001" lane="E14.38_2" pos="63.03" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000319220002" lane="E14.38_1" pos="62.96" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000319220003" lane="E14.38_0" pos="62.88" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000329220000" lane="E11.254_2" pos="33.20" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000329220001" lane="E11.254_1" pos="33.20" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000329220002" lane="E11.254_0" pos="33.20" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000339220000" lane="E15.252_3" pos="24.71" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000339220001" lane="E15.252_2" pos="24.73" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000339220002" lane="E15.252_1" pos="24.72" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000339220003" lane="E15.252_0" pos="24.72" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000300100200" lane="E16.371_5" pos="46.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000300100201" lane="E16.371_4" pos="46.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000301100202" lane="E16.371_3" pos="46.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000301100203" lane="E16.371_2" pos="46.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000301100204" lane="E16.371_1" pos="46.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000301100205" lane="E16.371_0" pos="46.60" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000302100206" lane="E56_0" pos="18.62" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000310100201" lane="E14.296_3" pos="36.77" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000310100202" lane="E14.296_2" pos="36.77" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000311100200" lane="E51_0" pos="321.64" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000311100203" lane="E14.296_1" pos="36.77" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000311100204" lane="E14.296_0" pos="36.77" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000312100205" lane="E49_0" pos="22.73" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000320100200" lane="E11.480_3" pos="15.31" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000321100201" lane="E11.480_2" pos="15.31" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000321100202" lane="E11.480_1" pos="15.31" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000321100203" lane="E11.480_0" pos="15.31" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000322100204" lane="E42_0" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000330100200" lane="E15.463_3" pos="34.29" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000330100201" lane="E15.463_2" pos="34.29" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000331100202" lane="E15.463_1" pos="34.29" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000331100203" lane="E15.463_0" pos="34.29" period="300.00" file="multi_results.xml" friendlyPos="1" />
+    <inductionLoop id="Det_000332100204" lane="E54_0" pos="0.00" period="300.00" file="multi_results.xml" />
+    <inductionLoop id="Det_000119220003" lane="E1.367_0" pos="0.00" period="300.00" file="multi_results.xml" />
+</additional>
