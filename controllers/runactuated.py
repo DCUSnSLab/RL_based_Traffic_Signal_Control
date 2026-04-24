@@ -1,5 +1,6 @@
 import traci
-from RunSimulation import RunSimulation
+
+from core.RunSimulation import RunSimulation
 
 
 class RunActuated(RunSimulation):

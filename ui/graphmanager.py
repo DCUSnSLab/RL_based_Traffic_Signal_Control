@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QGridLayout, QHBoxLayout, QPushButton, QVBoxLayout, QComboBox
 
-from Infra import SECTION_RESULT, TOTAL_RESULT
-from plotobject import PlotSection, PlotInfra, PLOTMODE, PlotObject
+from core.Infra import SECTION_RESULT, TOTAL_RESULT
+from ui.plotobject import PlotSection, PlotInfra, PLOTMODE, PlotObject
 
 
 class GraphLayout(QGridLayout):

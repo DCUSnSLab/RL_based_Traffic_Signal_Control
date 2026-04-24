@@ -1,6 +1,7 @@
 import math
 import traci
-from RunSimulation import RunSimulation
+
+from core.RunSimulation import RunSimulation
 
 class RunDilemaZone(RunSimulation):
     def __init__(self, config, name):

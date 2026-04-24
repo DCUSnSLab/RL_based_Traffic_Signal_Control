@@ -1,7 +1,9 @@
 from collections import deque
 from typing import Dict, List
+
 import pandas as pd
-from Infra import Infra, SECTION_RESULT
+
+from core.Infra import Infra, SECTION_RESULT
 
 class InfraManager():
     def __init__(self, config, name="Static Control", simMode=True, filenames=None, isExternal=False):

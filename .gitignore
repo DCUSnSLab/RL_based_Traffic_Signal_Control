@@ -1,4 +1,10 @@
 __pycache__
+**/__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 .idea
 .xlsx
@@ -8,3 +14,4 @@ Eb.xml
 Nb.xml
 Sb.xml
 Wb.xml
+New_TestWay/generated_flows.xml

@@ -1,8 +1,9 @@
-from RunSimulation import RunSimulation
-from stable_baselines3 import DQN
 import numpy as np
 import traci
 from gymnasium import spaces
+from stable_baselines3 import DQN
+
+from core.RunSimulation import RunSimulation
 class RunRLBased(RunSimulation):
     def __init__(self, config, name):
         super().__init__(config, name)
@@ -230,4 +231,3 @@ class RunRLBased(RunSimulation):
         self.sumo.trafficlight.setRedYellowGreenState(self.ts_ids[0], self.all_phases[0].state)
 
         #traci.trafficlight.setPhase("TLS_0", 1)
-

@@ -1,16 +1,16 @@
 from enum import Enum
 
-from Infra import Config_SUMO
-from runactuated import RunActuated
-from RunSimulation import RunSimulation
-from runactuatedBocc import RunActuatedBOCC
-from runactuatedocc import RunActuatedOCC
-from rundilemazone import RunDilemaZone
-from runrlbased import RunRLBased
-from runrlbased2 import RunRLBased2
-from runrlbased3 import RunRLBased3
-from runrlbased4 import RunRLBased4
-from runrlbased5 import RunRLBased5
+from controllers.runactuated import RunActuated
+from controllers.runactuatedBocc import RunActuatedBOCC
+from controllers.runactuatedocc import RunActuatedOCC
+from controllers.rundilemazone import RunDilemaZone
+from controllers.runrlbased import RunRLBased
+from controllers.runrlbased2 import RunRLBased2
+from controllers.runrlbased3 import RunRLBased3
+from controllers.runrlbased4 import RunRLBased4
+from controllers.runrlbased5 import RunRLBased5
+from core.Infra import Config_SUMO
+from core.RunSimulation import RunSimulation
 
 
 class SignalMode(Enum):

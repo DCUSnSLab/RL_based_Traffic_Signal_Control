@@ -3,8 +3,9 @@ import pickle
 from typing import Dict, List
 
 import traci
-from inframanager import InfraManager
-from Infra import SDetector, SStation, SSection, Infra, SECTION_RESULT
+
+from core.inframanager import InfraManager
+from core.Infra import SDetector, SStation, SSection, Infra, SECTION_RESULT
 
 class RunSimulation(InfraManager):
     def __init__(self, config, name="Static Control", isExternalSignal=False):

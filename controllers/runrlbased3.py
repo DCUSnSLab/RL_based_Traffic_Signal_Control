@@ -1,15 +1,14 @@
 import traci
+import random
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback
 
-from Infra import Config_SUMO, Infra, TOTAL_RESULT, SSection
-from RunSimulation import RunSimulation
-from sumo_rl import SumoEnvironment
 import numpy as np
 from gymnasium import spaces
-from sumo_rl import ObservationFunction, TrafficSignal
+from sumo_rl import ObservationFunction, SumoEnvironment, TrafficSignal
 
-import random
+from core.Infra import Config_SUMO, Infra, TOTAL_RESULT, SSection
+from core.RunSimulation import RunSimulation
 
 class CustomSumoEnvironment(SumoEnvironment):
     def __init__(self, simInfra, **kwargs):
